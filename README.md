@@ -1,112 +1,112 @@
 # Snake3D
 
-Browser-Snake in 3D, gebaut mit Vite, TypeScript und Three.js. Der Hintergrund ist reines Schwarz (`#000`, OLED-freundlich). Farbig sind nur die Schlangen und die Items. Das Spielfeld ist ein Raster mit grauen Linien. Screen-Effekte (Speed-Blur, Glitch, Fisheye, Regen-Refraktion u. a.) laufen als Shader-Pässe über den EffectComposer.
+Browser Snake in 3D, built with Vite, TypeScript and Three.js. The background is pure black (`#000`, OLED-friendly). Only the snakes and the items are colored. The board is a grid with gray lines. Screen effects (speed blur, glitch, fisheye, rain refraction and more) run as shader passes on the EffectComposer.
 
-## Start
+## Getting started
 
 ```bash
 npm install
-npm run dev      # Entwicklungsserver (Vite)
-npm test         # Simulations-Tests (Vitest)
-npm run build    # Typecheck (tsc --noEmit) + Produktions-Build (vite build)
+npm run dev      # dev server (Vite)
+npm test         # simulation tests (Vitest)
+npm run build    # typecheck (tsc --noEmit) + production build (vite build)
 ```
 
-Weitere Skripte: `npm run typecheck`, `npm run preview`.
+Other scripts: `npm run typecheck`, `npm run preview`.
 
-## Steuerung
+## Controls
 
-| Aktion | Eingabe |
+| Action | Input |
 | --- | --- |
-| Richtung | `W` `A` `S` `D` oder Pfeiltasten; auf Touch-Geräten wischen |
-| Hoch / runter (nur 3D-Raum) | `Leertaste` / `E` hoch, `Shift` / `Q` runter; Gamepad `R1` / `L1`; Touch: mit zwei Fingern vertikal wischen |
-| Pause / weiter | `Esc` oder `P` |
-| Neustart (nach Game Over) | `R` oder `Enter` |
-| Ansicht 3D / 2D | `V` (überall); im Menü auch Umschalter bzw. `↑` `↓` |
-| Welt | im Menü Umschalter bzw. `Tab` / `Shift+Tab` |
-| Dev-Items (nur `npm run dev`) | Ziffern `1`–`0`, siehe unten |
+| Direction | `W` `A` `S` `D` or arrow keys; swipe on touch devices |
+| Up / down (3D Space only) | `Space` / `E` up, `Shift` / `Q` down; gamepad `R1` / `L1`; touch: swipe vertically with two fingers |
+| Pause / resume | `Esc` or `P` |
+| Restart (after game over) | `R` or `Enter` |
+| View 3D / 2D | `V` (anywhere); in the menu also the toggle or `↑` `↓` |
+| World | in the menu the toggle or `Tab` / `Shift+Tab` |
+| Dev items (`npm run dev` only) | digits `1`–`0`, see below |
 
-Dev-Zuordnung (`DEV_KEYS` in `src/main.ts`), wirkt auf den lokalen Spieler, nur wenn `import.meta.env.DEV` gesetzt ist:
+Dev mapping (`DEV_KEYS` in `src/main.ts`), applies to the local player, only when `import.meta.env.DEV` is set:
 
-| Taste | Item | Taste | Item |
+| Key | Item | Key | Item |
 | --- | --- | --- | --- |
-| `1` | Goldapfel | `6` | Würfel |
-| `2` | Blitz | `7` | Spiegel |
-| `3` | Sanduhr | `8` | Geist |
-| `4` | Regen | `9` | Totenkopf |
-| `5` | Pilz | `0` | Schere |
+| `1` | Gold Apple | `6` | Dice |
+| `2` | Lightning | `7` | Mirror |
+| `3` | Hourglass | `8` | Ghost |
+| `4` | Rain | `9` | Skull |
+| `5` | Mushroom | `0` | Scissors |
 
-## Ansicht
+## View
 
-Zwei Ansichtsmodi: `3d` (schräge Perspektivkamera, Schlange und Items als 3D-Objekte) und `2d` (klassisch flach: Kamera senkrecht von oben mit kleinem FOV, Schlange und Items als flache Formen im Spielfeld). Umschalten mit `V` in jedem Screen oder über den Umschalter im Menü (wirkt sofort, auch mitten im Spiel, mit weichem Kameraübergang). Die Wahl steht im localStorage (`snake3d.view`). Der Tumble-Effekt kippt das Brett auch in 2D. Umsetzung: `ViewMode`/`VIEW_MODES` in `src/contracts.ts`, `GameRenderer.setViewMode`; 2D-Varianten in `src/render/snake2d.ts` und `src/render/items2d.ts`, Kamera in `src/render/scene.ts`.
+Two view modes: `3d` (angled perspective camera, snake and items as 3D objects) and `2d` (classic flat: camera looking straight down with a narrow FOV, snake and items as flat shapes on the board). Toggle with `V` on any screen or via the toggle in the menu (takes effect immediately, even mid-game, with a smooth camera transition). The choice is stored in localStorage (`snake3d.view`). The tumble effect tilts the board in 2D as well. Implementation: `ViewMode`/`VIEW_MODES` in `src/contracts.ts`, `GameRenderer.setViewMode`; 2D variants in `src/render/snake2d.ts` and `src/render/items2d.ts`, camera in `src/render/scene.ts`.
 
-## Welten
+## Worlds
 
-Vier Spielfeld-Topologien (`WorldId`/`WORLD_IDS` in `src/sim/world.ts`). Die Wahl erfolgt im Menü und steht im localStorage (`snake3d.world`). Ein neues Spielfeld startet flach und verwandelt sich animiert (ca. 1,8 s) in seine Form. Die 2D-Ansicht zeigt immer das flache Layout. Beim Umschalten rollt sich die Form wieder auf bzw. aus.
+Four board topologies (`WorldId`/`WORLD_IDS` in `src/sim/world.ts`). The world is chosen in the menu and stored in localStorage (`snake3d.world`). A new board starts flat and morphs into its shape with an animation (about 1.8 s). The 2D view always shows the flat layout. When switching, the shape rolls back up or unrolls.
 
-| Welt | Größe | Regeln | Darstellung in 3D |
+| World | Size | Rules | 3D rendering |
 | --- | --- | --- | --- |
-| `flat` (Flach) | 24 × 24 | Wände | wie bisher |
-| `torus` (Torus) | 36 × 16 | Keine Wände: rechts raus heißt links rein, oben raus heißt unten rein | Das Rechteck rollt sich zur Röhre und biegt sich zum Ring. Das Gitter scrollt um den Ring, damit der Kopf vorne bleibt. |
-| `sphere` (Kugel) | 6 × 10 × 10 | Würfeloberfläche ohne Wände, gespeichert als Kreuz-Netz (40 × 30). Über eine Würfelkante gelangt man auf die Nachbarfläche, dabei dreht sich die Richtung mit. | Das Netz faltet sich zum Würfel und bläst sich zur Kugel auf (Equal-Angle-Cube-Sphere). Die Kugel dreht sich so, dass der Kopf zur Kamera zeigt. |
-| `volume` (3D-Raum) | 12 × 12 × 12 | Wände in alle Richtungen. Zusätzliche Richtungen `ascend` / `descend` (z + 1 / z − 1). | Drahtgitter-Box, die aus dem Boden wächst. Dazu Raster der aktuellen Kopf-Ebene, Bodenschatten der Schlange, Lotlinien von Items und Kopf zum Boden, Items auf der Kopf-Ebene pulsieren. Das HUD zeigt die Ebene. Keine 2D-Ansicht. |
+| `flat` (Flat) | 24 × 24 | Walls | as before |
+| `torus` (Torus) | 36 × 16 | No walls: exit right to enter left, exit top to enter bottom | The rectangle rolls into a tube and bends into a ring. The grid scrolls around the ring so the head stays in front. |
+| `sphere` (Sphere) | 6 × 10 × 10 | Cube surface without walls, stored as a cross-shaped net (40 × 30). Crossing a cube edge takes you to the neighboring face, and the direction rotates with it. | The net folds into a cube and inflates into a sphere (equal-angle cube sphere). The sphere rotates so the head faces the camera. |
+| `volume` (3D Space) | 12 × 12 × 12 | Walls in all directions. Extra directions `ascend` / `descend` (z + 1 / z − 1). | Wireframe box that grows out of the floor. Plus a grid on the current head layer, the snake's floor shadow, plumb lines from items and head down to the floor, and items on the head layer pulse. The HUD shows the layer. No 2D view. |
 
-Steuerung auf der Kugel: Weil sich die Kugel unter der Schlange dreht, sind die Tasten bildschirmrelativ. `GameRenderer.mapInput` rechnet die gedrückte Richtung in die passende Netzrichtung der aktuellen Würfelfläche um, bevor die Eingabe an die Simulation geht. In allen anderen Welten fallen Bildschirm- und Gitterachsen zusammen.
+Controls on the sphere: because the sphere rotates beneath the snake, the keys are screen-relative. `GameRenderer.mapInput` converts the pressed direction into the matching net direction of the current cube face before the input reaches the simulation. In all other worlds the screen and grid axes coincide.
 
-Umsetzung: Simulation in `src/sim/world.ts` (`advance` liefert Zielzelle, neue Richtung und eine Umrechnung für bereits vorgemerkte Abbiegungen). Darstellung in `src/render/shape.ts` (`BoardShape`: Gitterkoordinaten zu Weltposition und Normale, abhängig vom Morph), `src/render/path.ts` (Interpolation über Nähte hinweg) und `src/render/volume.ts` (Tiefenhilfen). Die Tests stehen in `tests/sim/world.test.ts`.
+Implementation: simulation in `src/sim/world.ts` (`advance` returns the target cell, the new direction and a conversion for already queued turns). Rendering in `src/render/shape.ts` (`BoardShape`: grid coordinates to world position and normal, depending on the morph), `src/render/path.ts` (interpolation across seams) and `src/render/volume.ts` (depth cues). Tests are in `tests/sim/world.test.ts`.
 
 ## Items
 
-Dauer = `durationTicks / TICK_HZ` (TICK_HZ = 60). Die Tabelle zeigt die Werte aus `src/sim/items.ts`; die Wirkung stammt aus `ITEM_DESCRIPTIONS` in `src/ui/texts.ts`.
+Duration = `durationTicks / TICK_HZ` (TICK_HZ = 60). The table shows the values from `src/sim/items.ts`; the effect text comes from `ITEM_DESCRIPTIONS` in `src/ui/texts.ts`.
 
-| Item | Name | Farbe | Wirkung | Dauer (s) | Polarität |
+| Item | Name | Color | Effect | Duration (s) | Polarity |
 | --- | --- | --- | --- | --- | --- |
-| `apple` | Apfel | `#ff2a2a` | Wächst um 1, +10 Punkte | – (kein Effekt) | positiv |
-| `goldapple` | Goldapfel | `#ffc61a` | Wächst um 3, +50 Punkte, goldener Blitz | 0,75 | positiv |
-| `speed` | Blitz | `#fff200` | Schneller, doppelte Punkte | 8 | positiv |
-| `slowmo` | Sanduhr | `#22e6ff` | Langsamer, mehr Zeit zum Reagieren | 8 | positiv |
-| `rain` | Regen | `#2a6bff` | Regen trübt die Sicht | 10 | negativ |
-| `mushroom` | Pilz | `#ff4fd8` | Wellen und Farbverschiebung | 10 | negativ |
-| `tumble` | Würfel | `#9b4dff` | Das Spielfeld kippt und dreht sich | 8 | negativ |
-| `mirror` | Spiegel | `#ffffff` | Steuerung seitenverkehrt | 8 | negativ |
-| `ghost` | Geist | `#5dff8a` | Schlange halb durchsichtig | 8 | positiv |
-| `glitch` | Totenkopf | `#ff7a1a` | Bildstörung, Totenkopf-Chaos | 8 | negativ |
-| `shrink` | Schere | `#b44dff` | Verkürzt um 3 Segmente (sofort), Effekt "fisheye" | 1,5 | positiv |
+| `apple` | Apple | `#ff2a2a` | Grow by 1, +10 points | – (no effect) | positive |
+| `goldapple` | Gold Apple | `#ffc61a` | Grow by 3, +50 points, golden flash | 0.75 | positive |
+| `speed` | Lightning | `#fff200` | Faster, double points | 8 | positive |
+| `slowmo` | Hourglass | `#22e6ff` | Slower, more time to react | 8 | positive |
+| `rain` | Rain | `#2a6bff` | Rain blurs your vision | 10 | negative |
+| `mushroom` | Mushroom | `#ff4fd8` | Waves and color shift | 10 | negative |
+| `tumble` | Dice | `#9b4dff` | The board tilts and spins | 8 | negative |
+| `mirror` | Mirror | `#ffffff` | Controls mirrored | 8 | negative |
+| `ghost` | Ghost | `#5dff8a` | Snake turns semi-transparent | 8 | positive |
+| `glitch` | Skull | `#ff7a1a` | Screen glitch, skull chaos | 8 | negative |
+| `shrink` | Scissors | `#b44dff` | Shrink by 3 segments (instant), "fisheye" effect | 1.5 | positive |
 
-Hinweise:
-- `apple` hat Gewicht 0 und wird nicht zufällig als Special gespawnt. Es gibt immer einen Apfel auf dem Feld (`ensureApple`).
-- Goldapfel bleibt 6 s auf dem Feld, die übrigen Specials 8 s (`lifetimeTicks`).
-- Die Dauer gilt für den Effekt. Die Schere wirkt sofort und setzt zusätzlich einen kurzen Fisheye-Effekt.
+Notes:
+- `apple` has weight 0 and is never spawned randomly as a special. There is always one apple on the board (`ensureApple`).
+- The Gold Apple stays on the board for 6 s, the other specials for 8 s (`lifetimeTicks`).
+- The duration applies to the effect. The Scissors act instantly and additionally trigger a short fisheye effect.
 
 ## Skins
 
-Verfügbar: `classic`, `rainbow`, `pumpkin`, `neon`, `lava`, `galaxy`. Die Auswahl erfolgt im Menü und wird im localStorage gespeichert. Skins sind rein kosmetisch und beeinflussen die Simulation nicht.
+Available: `classic`, `rainbow`, `pumpkin`, `neon`, `lava`, `galaxy`. The skin is chosen in the menu and saved in localStorage. Skins are purely cosmetic and do not affect the simulation.
 
-## Architektur
+## Architecture
 
-- `src/sim/`: Spiellogik. Deterministisch und Tick-basiert (`step(state, inputs)` liefert einen neuen State). Enthält Items, Effekte, Welten/Topologie (`world.ts`), RNG, Hash und Zustandstypen.
-- `src/net/`: Transport-Schicht (`transport.ts`, `LocalTransport` für Singleplayer). Konzept für Multiplayer siehe `src/net/README.md`.
-- `src/render/`: Three.js-Szene (Grid, Schlangen, Items, Partikel, Skins, Spielfeldform `shape.ts`, Schlangenpfad `path.ts`, 3D-Raum-Hilfen `volume.ts`). `src/render/post/` enthält die Shader-Pässe (`uberShader.ts`, `phosphorPass.ts`) und den PostProcessor.
-- `src/input/`: Tastatur (`keyboard.ts`) und Touch-Wischen (`touch.ts`). Liefert Richtungen pro Tick.
-- `src/ui/`: DOM-Overlay mit Menü, HUD, Pause- und Game-Over-Screen. Texte in `texts.ts`, Persistenz in `store.ts`.
-- `src/contracts.ts`: Schnittstellen zwischen `main.ts` und den Modulen (Renderer, Post, Input, UI), außerdem die Liste `SKINS`.
-- `src/main.ts`: Spielschleife (feste Ticks, Interpolation, Frame-Ablauf).
+- `src/sim/`: game logic. Deterministic and tick-based (`step(state, inputs)` returns a new state). Contains items, effects, worlds/topology (`world.ts`), RNG, hash and state types.
+- `src/net/`: transport layer (`transport.ts`, `LocalTransport` for single player). Multiplayer concept in `src/net/README.md`.
+- `src/render/`: Three.js scene (grid, snakes, items, particles, skins, board shape `shape.ts`, snake path `path.ts`, 3D Space helpers `volume.ts`). `src/render/post/` contains the shader passes (`uberShader.ts`, `phosphorPass.ts`) and the PostProcessor.
+- `src/input/`: keyboard (`keyboard.ts`) and touch swipes (`touch.ts`). Provides directions per tick.
+- `src/ui/`: DOM overlay with menu, HUD, pause and game over screens. Texts in `texts.ts`, persistence in `store.ts`.
+- `src/contracts.ts`: interfaces between `main.ts` and the modules (renderer, post, input, UI), plus the `SKINS` list.
+- `src/main.ts`: game loop (fixed ticks, interpolation, frame sequence).
 
-### Multiplayer-Roadmap
+### Multiplayer roadmap
 
-Multiplayer ist noch nicht implementiert. Das geplante Vorgehen (WebRTC DataChannel, Lockstep mit Input-Delay oder Host-autoritativ, Signalisierung und TURN) steht in [`src/net/README.md`](src/net/README.md).
+Multiplayer is not implemented yet. The planned approach (WebRTC DataChannel, lockstep with input delay or host-authoritative, signaling and TURN) is described in [`src/net/README.md`](src/net/README.md).
 
-## Neues Item ergänzen
+## Adding a new item
 
-1. `src/sim/types.ts`: `ItemId` um die neue ID erweitern. Bei einem neuen Effekt zusätzlich `EffectId`.
-2. `src/sim/items.ts`: Eintrag in `ITEMS` (Name, Farbe, Gewicht, Effekt, Dauer, Polarität, Wachstum, Punkte, Lebensdauer).
-3. `src/sim/effects.ts`: Bei neuem Effekt `EFFECT_IDS` und `EFFECT_FADE` ergänzen.
-4. `src/render/items.ts`: Eintrag in `builders` (Record über `ItemId`, daher Pflicht). Optional Drehung in `SPIN`. Ebenso `src/render/items2d.ts` (flaches Icon für den 2D-Modus).
-5. `src/ui/texts.ts`: `ITEM_DESCRIPTIONS` (Pflicht, da `Record<ItemId, string>`). Optional `EFFECT_TOASTS`.
-6. Bei visuellem Effekt: Intensität in `src/render/post/index.ts` bzw. `uberShader.ts` anbinden.
-7. Optional: Dev-Taste in `DEV_KEYS` (`src/main.ts`).
-8. `npm test` und `npm run build` ausführen.
+1. `src/sim/types.ts`: add the new ID to `ItemId`. For a new effect, also to `EffectId`.
+2. `src/sim/items.ts`: add an entry to `ITEMS` (name, color, weight, effect, duration, polarity, growth, points, lifetime).
+3. `src/sim/effects.ts`: for a new effect, extend `EFFECT_IDS` and `EFFECT_FADE`.
+4. `src/render/items.ts`: add an entry to `builders` (a record over `ItemId`, so it is required). Optionally a spin in `SPIN`. Likewise `src/render/items2d.ts` (flat icon for 2D mode).
+5. `src/ui/texts.ts`: `ITEM_DESCRIPTIONS` (required, since it is `Record<ItemId, string>`). Optionally `EFFECT_TOASTS`.
+6. For a visual effect: wire up the intensity in `src/render/post/index.ts` or `uberShader.ts`.
+7. Optional: a dev key in `DEV_KEYS` (`src/main.ts`).
+8. Run `npm test` and `npm run build`.
 
-## Neuen Skin ergänzen
+## Adding a new skin
 
-1. `src/render/skins.ts`: Skin-Objekt mit `id`, `colorAt`, `headColor`, `createHead` (optional `segmentScale`, `headScale`, `createHead2D` für den flachen Kopf im 2D-Modus) anlegen und in die `for`-Schleife am Dateiende aufnehmen, die `registerSkin` aufruft.
-2. `src/contracts.ts`: Die ID in das Array `SKINS` eintragen. Das Menü übernimmt sie automatisch.
+1. `src/render/skins.ts`: create a skin object with `id`, `colorAt`, `headColor`, `createHead` (optionally `segmentScale`, `headScale`, `createHead2D` for the flat head in 2D mode) and add it to the `for` loop at the end of the file that calls `registerSkin`.
+2. `src/contracts.ts`: add the ID to the `SKINS` array. The menu picks it up automatically.

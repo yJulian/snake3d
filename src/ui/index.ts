@@ -47,22 +47,22 @@ export function createUI(root: HTMLElement): GameUI {
 
   const pause = el('s3d-screen', host);
   el('s3d-h', pause).textContent = 'PAUSE';
-  pause.appendChild(button('Weiter', () => handlers.onResume?.()));
-  el('s3d-hint', pause).textContent = 'Esc / P zum Fortsetzen';
+  pause.appendChild(button('Resume', () => handlers.onResume?.()));
+  el('s3d-hint', pause).textContent = 'Esc / P to resume';
 
   const over = el('s3d-screen', host);
   el('s3d-h', over).textContent = 'GAME OVER';
   const overScore = el('s3d-big', over);
   const overNew = el('s3d-new', over);
-  overNew.textContent = 'Neuer Highscore!';
+  overNew.textContent = 'New high score!';
   const overHi = el('s3d-sub', over);
-  over.appendChild(button('Neustart', () => handlers.onRestart?.()));
-  el('s3d-hint', over).textContent = 'R / Enter zum Neustart';
+  over.appendChild(button('Restart', () => handlers.onRestart?.()));
+  el('s3d-hint', over).textContent = 'R / Enter to restart';
 
   function refreshOver(): void {
     overScore.textContent = String(lastScore);
     overNew.hidden = !newHigh;
-    overHi.textContent = `Highscore ${highscore}`;
+    overHi.textContent = `High score ${highscore}`;
   }
 
   // Menu keyboard control. Enter only acts in the menu: main.ts' onRestart ignores Enter outside

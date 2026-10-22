@@ -1,28 +1,28 @@
 import type { EffectId, ItemId } from '../sim/types';
 
 export const ITEM_DESCRIPTIONS: Record<ItemId, string> = {
-  apple: 'Wächst um 1, +10 Punkte',
-  goldapple: 'Wächst um 3, +50 Punkte, goldener Blitz',
-  speed: 'Schneller, doppelte Punkte',
-  slowmo: 'Langsamer, mehr Zeit zum Reagieren',
-  rain: 'Regen trübt die Sicht',
-  mushroom: 'Wellen und Farbverschiebung',
-  tumble: 'Das Spielfeld kippt und dreht sich',
-  mirror: 'Steuerung seitenverkehrt',
-  ghost: 'Schlange halb durchsichtig',
-  glitch: 'Bildstörung, Totenkopf-Chaos',
-  shrink: 'Verkürzt um 3 Segmente',
+  apple: 'Grow by 1, +10 points',
+  goldapple: 'Grow by 3, +50 points, golden flash',
+  speed: 'Faster, double points',
+  slowmo: 'Slower, more time to react',
+  rain: 'Rain blurs your vision',
+  mushroom: 'Waves and color shift',
+  tumble: 'The board tilts and spins',
+  mirror: 'Controls mirrored',
+  ghost: 'Snake turns semi-transparent',
+  glitch: 'Screen glitch, skull chaos',
+  shrink: 'Shrink by 3 segments',
 };
 
 /** Centered toast text on effectStart (missing = no toast). */
 export const EFFECT_TOASTS: Partial<Record<EffectId, string>> = {
   speed: 'BLITZ!',
   slow: 'SLOW-MO!',
-  rain: 'REGEN!',
+  rain: 'RAIN!',
   trip: 'TRIP!',
   tumble: 'TUMBLE!',
-  mirror: 'SPIEGEL!',
-  ghost: 'GEIST!',
+  mirror: 'MIRROR!',
+  ghost: 'GHOST!',
   glitch: 'GLITCH!',
-  fisheye: 'SCHNITT!',
+  fisheye: 'SNIP!',
 };

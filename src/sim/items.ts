@@ -22,17 +22,17 @@ export interface ItemDef {
 }
 
 export const ITEMS: Record<ItemId, ItemDef> = {
-  apple:     { id: 'apple',     name: 'Apfel',     color: '#ff2a2a', weight: 0,  effect: null,        durationTicks: 0,      polarity: 'positive', growth: 1,  points: 10, lifetimeTicks: null },
-  goldapple: { id: 'goldapple', name: 'Goldapfel', color: '#ffc61a', weight: 6,  effect: 'goldflash', durationTicks: S * 3 / 4, polarity: 'positive', growth: 3, points: 50, lifetimeTicks: 6 * S },
-  speed:     { id: 'speed',     name: 'Blitz',     color: '#fff200', weight: 10, effect: 'speed',     durationTicks: 8 * S,  polarity: 'positive', growth: 0,  points: 5,  lifetimeTicks: 8 * S },
-  slowmo:    { id: 'slowmo',    name: 'Sanduhr',   color: '#22e6ff', weight: 10, effect: 'slow',      durationTicks: 8 * S,  polarity: 'positive', growth: 0,  points: 5,  lifetimeTicks: 8 * S },
-  rain:      { id: 'rain',      name: 'Regen',     color: '#2a6bff', weight: 8,  effect: 'rain',      durationTicks: 10 * S, polarity: 'negative', growth: 0,  points: 20, lifetimeTicks: 8 * S },
-  mushroom:  { id: 'mushroom',  name: 'Pilz',      color: '#ff4fd8', weight: 8,  effect: 'trip',      durationTicks: 10 * S, polarity: 'negative', growth: 0,  points: 20, lifetimeTicks: 8 * S },
-  tumble:    { id: 'tumble',    name: 'Würfel',    color: '#9b4dff', weight: 6,  effect: 'tumble',    durationTicks: 8 * S,  polarity: 'negative', growth: 0,  points: 20, lifetimeTicks: 8 * S },
-  mirror:    { id: 'mirror',    name: 'Spiegel',   color: '#ffffff', weight: 6,  effect: 'mirror',    durationTicks: 8 * S,  polarity: 'negative', growth: 0,  points: 20, lifetimeTicks: 8 * S },
-  ghost:     { id: 'ghost',     name: 'Geist',     color: '#5dff8a', weight: 6,  effect: 'ghost',     durationTicks: 8 * S,  polarity: 'positive', growth: 0,  points: 5,  lifetimeTicks: 8 * S },
-  glitch:    { id: 'glitch',    name: 'Totenkopf', color: '#ff7a1a', weight: 6,  effect: 'glitch',    durationTicks: 8 * S,  polarity: 'negative', growth: 0,  points: 20, lifetimeTicks: 8 * S },
-  shrink:    { id: 'shrink',    name: 'Schere',    color: '#b44dff', weight: 6,  effect: 'fisheye',   durationTicks: S * 3 / 2, polarity: 'positive', growth: -3, points: 0, lifetimeTicks: 8 * S },
+  apple:     { id: 'apple',     name: 'Apple',     color: '#ff2a2a', weight: 0,  effect: null,        durationTicks: 0,      polarity: 'positive', growth: 1,  points: 10, lifetimeTicks: null },
+  goldapple: { id: 'goldapple', name: 'Gold Apple', color: '#ffc61a', weight: 6,  effect: 'goldflash', durationTicks: S * 3 / 4, polarity: 'positive', growth: 3, points: 50, lifetimeTicks: 6 * S },
+  speed:     { id: 'speed',     name: 'Lightning', color: '#fff200', weight: 10, effect: 'speed',     durationTicks: 8 * S,  polarity: 'positive', growth: 0,  points: 5,  lifetimeTicks: 8 * S },
+  slowmo:    { id: 'slowmo',    name: 'Hourglass', color: '#22e6ff', weight: 10, effect: 'slow',      durationTicks: 8 * S,  polarity: 'positive', growth: 0,  points: 5,  lifetimeTicks: 8 * S },
+  rain:      { id: 'rain',      name: 'Rain',      color: '#2a6bff', weight: 8,  effect: 'rain',      durationTicks: 10 * S, polarity: 'negative', growth: 0,  points: 20, lifetimeTicks: 8 * S },
+  mushroom:  { id: 'mushroom',  name: 'Mushroom',  color: '#ff4fd8', weight: 8,  effect: 'trip',      durationTicks: 10 * S, polarity: 'negative', growth: 0,  points: 20, lifetimeTicks: 8 * S },
+  tumble:    { id: 'tumble',    name: 'Dice',      color: '#9b4dff', weight: 6,  effect: 'tumble',    durationTicks: 8 * S,  polarity: 'negative', growth: 0,  points: 20, lifetimeTicks: 8 * S },
+  mirror:    { id: 'mirror',    name: 'Mirror',    color: '#ffffff', weight: 6,  effect: 'mirror',    durationTicks: 8 * S,  polarity: 'negative', growth: 0,  points: 20, lifetimeTicks: 8 * S },
+  ghost:     { id: 'ghost',     name: 'Ghost',     color: '#5dff8a', weight: 6,  effect: 'ghost',     durationTicks: 8 * S,  polarity: 'positive', growth: 0,  points: 5,  lifetimeTicks: 8 * S },
+  glitch:    { id: 'glitch',    name: 'Skull',     color: '#ff7a1a', weight: 6,  effect: 'glitch',    durationTicks: 8 * S,  polarity: 'negative', growth: 0,  points: 20, lifetimeTicks: 8 * S },
+  shrink:    { id: 'shrink',    name: 'Scissors',  color: '#b44dff', weight: 6,  effect: 'fisheye',   durationTicks: S * 3 / 2, polarity: 'positive', growth: -3, points: 0, lifetimeTicks: 8 * S },
 };
 
 export const ITEM_IDS = Object.keys(ITEMS) as ItemId[];

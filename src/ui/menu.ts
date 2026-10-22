@@ -20,7 +20,7 @@ const SKIN_LABEL: Record<SkinId, string> = {
   classic: 'Classic', rainbow: 'Rainbow', pumpkin: 'Pumpkin', neon: 'Neon', lava: 'Lava', galaxy: 'Galaxy',
 };
 
-const WORLD_LABEL: Record<WorldId, string> = { flat: 'Flach', torus: 'Torus', sphere: 'Kugel', volume: '3D-Raum' };
+const WORLD_LABEL: Record<WorldId, string> = { flat: 'Flat', torus: 'Torus', sphere: 'Sphere', volume: '3D Space' };
 
 export function createMenu(
   initial: SkinId,
@@ -60,7 +60,7 @@ export function createMenu(
 
   const viewRow = document.createElement('div');
   viewRow.className = 's3d-view';
-  viewRow.append('Ansicht');
+  viewRow.append('View');
   const viewButtons = new Map<ViewMode, HTMLButtonElement>();
   for (const m of VIEW_MODES) {
     const b = document.createElement('button');
@@ -76,7 +76,7 @@ export function createMenu(
 
   const worldRow = document.createElement('div');
   worldRow.className = 's3d-view';
-  worldRow.append('Welt');
+  worldRow.append('World');
   const worldButtons = new Map<WorldId, HTMLButtonElement>();
   for (const w of WORLD_IDS) {
     const b = document.createElement('button');
@@ -100,7 +100,7 @@ export function createMenu(
 
   const hint = document.createElement('div');
   hint.className = 's3d-hint';
-  hint.innerHTML = 'Steuerung: WASD / Pfeiltasten oder Wischen<br>3D-Raum: Leertaste / E hoch · Shift / Q runter (Touch: zwei Finger)<br>Esc / P Pause · R Neustart · Enter Start · &larr; &rarr; Skin<br>&uarr; &darr; / V Ansicht (3D / 2D) · Tab Welt';
+  hint.innerHTML = 'Controls: WASD / arrow keys or swipe<br>3D Space: Space / E up · Shift / Q down (touch: two fingers)<br>Esc / P pause · R restart · Enter start · &larr; &rarr; skin<br>&uarr; &darr; / V view (3D / 2D) · Tab world';
   el.appendChild(hint);
 
   const legend = document.createElement('div');

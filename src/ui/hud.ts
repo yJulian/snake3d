@@ -35,13 +35,13 @@ export function createHud(): Hud {
   const row = div('s3d-row', el);
   const left = div('', row);
   const scoreEl = stat(left, 'Score');
-  const lenEl = stat(left, 'Länge');
+  const lenEl = stat(left, 'Length');
   lenEl.style.fontSize = '16px';
-  const layerEl = stat(left, 'Ebene');
+  const layerEl = stat(left, 'Layer');
   layerEl.style.fontSize = '16px';
   const layerStat = layerEl.parentElement!;
   const pops = div('s3d-pop-wrap', left);
-  const hiEl = stat(div('', row), 'Highscore', 'r');
+  const hiEl = stat(div('', row), 'High score', 'r');
   const fx = div('s3d-fx', el);
 
   let localId: PlayerId | null = null;
