@@ -1,48 +1,161 @@
-// STUB – replaced in phase 2
 import * as THREE from 'three';
-import type { GameRenderer } from '../contracts';
+import type { EffectIntensities, GameRenderer } from '../contracts';
 import { ITEMS, interpolateSegments } from '../contracts';
+import type { GameEvent, GameState, Item } from '../sim/types';
+import { createGrid, type GridView } from './grid';
+import { createItemKit, ItemView } from './items';
+import { Particles } from './particles';
+import { createSceneKit } from './scene';
+import { SnakeView, type Layout } from './snake';
+import { getSkin } from './skins';
 
 export function createRenderer(container: HTMLElement): GameRenderer {
-  const webgl = new THREE.WebGLRenderer({ antialias: true });
-  webgl.setClearColor(0x000000);
+  const webgl = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+  webgl.setClearColor(0x000000, 1);
   container.appendChild(webgl.domElement);
-  const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 200);
-  camera.position.set(0, 0, 40);
-  const group = new THREE.Group();
-  scene.add(group);
-  const box = new THREE.BoxGeometry(0.9, 0.9, 0.9);
+
+  const kit = createSceneKit();
+  const { scene, camera, boardGroup } = kit;
+  const itemKit = createItemKit();
+  const particles = new Particles(boardGroup);
+
+  const lay: Layout = { ox: 0, oz: 0 };
+  let cols = 0;
+  let rows = 0;
+  let grid: GridView | null = null;
+  let lastTick = -1;
+  let lastTime = 0;
+  let last: GameState | null = null;
+  let viewW = 1;
+  let viewH = 1;
+  let stamp = 0;
+  const snakes = new Map<string, SnakeView>();
+  const items = new Map<number, ItemView>();
+
+  function clearViews(): void {
+    for (const v of snakes.values()) v.dispose();
+    snakes.clear();
+    for (const v of items.values()) v.dispose();
+    items.clear();
+    particles.clear();
+  }
+
+  function setBoard(c: number, r: number): void {
+    cols = c;
+    rows = r;
+    grid?.object.removeFromParent();
+    grid?.dispose();
+    grid = createGrid(c, r);
+    boardGroup.add(grid.object);
+    lay.ox = -c / 2 + 0.5;
+    lay.oz = -r / 2 + 0.5;
+    kit.fitCamera(c, r);
+  }
 
   return {
     webgl,
     scene,
     camera,
-    update(_prev, curr, alpha) {
-      group.clear();
-      const { width, height } = curr.config;
-      const place = (m: THREE.Object3D, x: number, y: number) =>
-        m.position.set(x - width / 2 + 0.5, height / 2 - y - 0.5, 0);
-      for (const p of curr.players)
-        for (const c of interpolateSegments(p, alpha)) {
-          const m = new THREE.Mesh(box, new THREE.MeshBasicMaterial({ color: p.alive ? 0x33ff66 : 0x555555 }));
-          place(m, c.x, c.y);
-          group.add(m);
+    update(_prev: GameState, curr: GameState, alpha: number, timeSec: number, fx: EffectIntensities) {
+      const dt = Math.min(0.1, Math.max(0, timeSec - lastTime));
+      lastTime = timeSec;
+      last = curr;
+      if (curr.config.width !== cols || curr.config.height !== rows) {
+        clearViews();
+        setBoard(curr.config.width, curr.config.height);
+      }
+      if (curr.tick < lastTick) clearViews(); // new game
+      lastTick = curr.tick;
+
+      // Snakes
+      const live = new Set<string>();
+      for (const p of curr.players) {
+        live.add(p.id);
+        let v = snakes.get(p.id);
+        if (!v) {
+          v = new SnakeView(boardGroup, p.skinId);
+          snakes.set(p.id, v);
         }
-      for (const it of curr.items) {
-        const m = new THREE.Mesh(box, new THREE.MeshBasicMaterial({ color: ITEMS[it.kind].color }));
-        place(m, it.x, it.y);
-        group.add(m);
+        v.update(p, interpolateSegments(p, alpha), timeSec, lay, fx.ghost);
+      }
+      for (const [id, v] of snakes) {
+        if (!live.has(id)) {
+          v.dispose();
+          snakes.delete(id);
+        }
+      }
+
+      // Items
+      stamp++;
+      for (const it of curr.items as readonly Item[]) {
+        let v = items.get(it.uid);
+        if (v && v.kind !== it.kind) {
+          v.dispose();
+          items.delete(it.uid);
+          v = undefined;
+        }
+        if (!v) {
+          v = new ItemView(it.kind, itemKit, boardGroup, timeSec, it.uid);
+          items.set(it.uid, v);
+        }
+        v.stamp = stamp;
+        v.dying = -1;
+        v.update(it, timeSec, lay);
+      }
+      for (const [uid, v] of items) {
+        if (v.stamp === stamp) continue;
+        if (v.dying < 0) v.dying = timeSec;
+        // keep last known position; update() only needs x/y/ttl
+        const keep = v.update({ uid, kind: v.kind, x: v.root.position.x - lay.ox, y: v.root.position.z - lay.oz, ttl: null }, timeSec, lay);
+        if (!keep) {
+          v.dispose();
+          items.delete(uid);
+        }
+      }
+
+      particles.update(dt);
+
+      // Tumble: smooth, returns exactly to identity at 0
+      const a = fx.tumble;
+      if (a > 0) {
+        boardGroup.rotation.set(
+          a * 0.6 * Math.sin(timeSec * 0.8),
+          a * 1.1 * Math.sin(timeSec * 0.45 + 2),
+          a * 0.6 * Math.sin(timeSec * 0.6 + 1),
+        );
+      } else boardGroup.rotation.set(0, 0, 0);
+    },
+    onEvents(events: readonly GameEvent[]) {
+      for (const e of events) {
+        if (e.type === 'eat') {
+          particles.burst(e.x + lay.ox, 0.6, e.y + lay.oz, ITEMS[e.itemId].color, e.itemId === 'goldapple' ? 40 : 18, 3.2, 0.7);
+        } else if (e.type === 'death') {
+          const p = last?.players.find((q) => q.id === e.playerId);
+          const h = p?.snake.segments[0];
+          if (p && h) {
+            const c = new THREE.Color();
+            getSkin(p.skinId).headColor(lastTime, c);
+            particles.burst(h.x + lay.ox, 0.6, h.y + lay.oz, '#ff5030', 40, 4.5, 1.0);
+            particles.burst(h.x + lay.ox, 0.6, h.y + lay.oz, c.clone().multiplyScalar(0.7), 25, 3, 1.0);
+          }
+        }
       }
     },
-    onEvents() {},
-    resize(w, h) {
+    resize(width: number, height: number) {
+      viewW = Math.max(1, width);
+      viewH = Math.max(1, height);
       webgl.setPixelRatio(Math.min(2, window.devicePixelRatio));
-      webgl.setSize(w, h);
-      camera.aspect = w / h;
+      webgl.setSize(viewW, viewH);
+      camera.aspect = viewW / viewH;
       camera.updateProjectionMatrix();
+      if (cols > 0) kit.fitCamera(cols, rows);
     },
     dispose() {
+      clearViews();
+      particles.dispose();
+      grid?.dispose();
+      itemKit.dispose();
+      kit.dispose();
       webgl.dispose();
       webgl.domElement.remove();
     },
