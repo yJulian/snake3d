@@ -9,6 +9,10 @@ import { createSceneKit } from './scene';
 import { SnakeView, type Layout } from './snake';
 import { getSkin } from './skins';
 
+/** Screen margin kept while the board tumbles (fitCamera uses 1.12 for the resting board). */
+const TUMBLE_MARGIN = 1.06;
+const tmpCorner = new THREE.Vector3();
+
 export function createRenderer(container: HTMLElement): GameRenderer {
   const webgl = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
   webgl.setClearColor(0x000000, 1);
@@ -38,6 +42,23 @@ export function createRenderer(container: HTMLElement): GameRenderer {
     for (const v of items.values()) v.dispose();
     items.clear();
     particles.clear();
+  }
+
+  /** Scale (<= 1) that keeps the rotated board (incl. snake height) inside the view. */
+  function tumbleFitScale(): number {
+    boardGroup.scale.setScalar(1);
+    boardGroup.updateMatrixWorld(true);
+    camera.updateMatrixWorld();
+    let ext = 0;
+    for (let i = 0; i < 8; i++) {
+      tmpCorner
+        .set(((i & 1 ? 1 : -1) * cols) / 2, i & 4 ? 1.2 : 0, ((i & 2 ? 1 : -1) * rows) / 2)
+        .applyMatrix4(boardGroup.matrixWorld)
+        .project(camera);
+      ext = Math.max(ext, Math.abs(tmpCorner.x), Math.abs(tmpCorner.y));
+    }
+    ext *= TUMBLE_MARGIN;
+    return ext > 1 ? 1 / ext : 1;
   }
 
   function setBoard(c: number, r: number): void {
@@ -115,15 +136,19 @@ export function createRenderer(container: HTMLElement): GameRenderer {
 
       particles.update(dt);
 
-      // Tumble: smooth, returns exactly to identity at 0
+      // Tumble: smooth, returns exactly to identity at 0; shrinks the board so it never leaves the frame
       const a = fx.tumble;
       if (a > 0) {
         boardGroup.rotation.set(
-          a * 0.6 * Math.sin(timeSec * 0.8),
+          a * 0.45 * Math.sin(timeSec * 0.8),
           a * 1.1 * Math.sin(timeSec * 0.45 + 2),
-          a * 0.6 * Math.sin(timeSec * 0.6 + 1),
+          a * 0.5 * Math.sin(timeSec * 0.6 + 1),
         );
-      } else boardGroup.rotation.set(0, 0, 0);
+        boardGroup.scale.setScalar(tumbleFitScale());
+      } else {
+        boardGroup.rotation.set(0, 0, 0);
+        boardGroup.scale.setScalar(1);
+      }
     },
     onEvents(events: readonly GameEvent[]) {
       for (const e of events) {

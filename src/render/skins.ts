@@ -118,10 +118,10 @@ const classic: Skin = {
 const rainbow: Skin = {
   id: 'rainbow',
   colorAt(i, _len, t, out) {
-    out.setHSL(fract(i * 0.045 - t * 0.35), 1, 0.55, SRGB).multiplyScalar(1.25);
+    out.setHSL(fract(i * 0.06 - t * 0.35), 1, 0.5, SRGB).multiplyScalar(1.3);
   },
   headColor(t, out) {
-    out.setHSL(fract(-t * 0.35), 1, 0.6, SRGB).multiplyScalar(1.4);
+    out.setHSL(fract(-t * 0.35), 1, 0.5, SRGB).multiplyScalar(1.5);
   },
   createHead: eyesHead,
 };
@@ -145,14 +145,14 @@ const neon: Skin = {
   id: 'neon',
   colorAt(i, _len, t, out) {
     const m = 0.5 + 0.5 * Math.sin(i * 0.9 - t * 4);
-    out.setRGB(2.6, 0.15, 1.5);
-    _tmp.setRGB(0.1, 2.4, 2.8);
+    out.setRGB(1.5, 0.05, 0.85);
+    _tmp.setRGB(0.04, 1.2, 1.6);
     out.lerp(_tmp, m);
   },
   headColor(t, out) {
     const m = 0.5 + 0.5 * Math.sin(-t * 4);
-    out.setRGB(3.0, 0.4, 1.8);
-    _tmp.setRGB(0.3, 2.8, 3.2);
+    out.setRGB(1.8, 0.12, 1.0);
+    _tmp.setRGB(0.1, 1.5, 1.9);
     out.lerp(_tmp, m);
   },
   createHead: eyesHead,

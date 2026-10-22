@@ -4,8 +4,8 @@ import { FullScreenQuad, Pass } from 'three/addons/postprocessing/Pass.js';
 /**
  * Phosphor afterimage for the ghost effect (feedback buffer).
  * history' = max(current, history * decay - epsilon) – the trail only lives where color was,
- * decays per channel (green lasts longest, like P1 phosphor) and is pulled down to exact
- * 0 so black stays #000.
+ * decays per channel (green lasts longest, like P1 phosphor), is pulled down to exact
+ * 0 so black stays #000, and only colored pixels leave a trail (grey grid never smears).
  */
 const vertexShader = /* glsl */ `
 varying vec2 vUv;
@@ -25,6 +25,9 @@ void main() {
   vec3 cur = texture2D(tCurrent, vUv).rgb;
   vec3 hist = texture2D(tHistory, vUv).rgb;
   vec3 trail = max(hist * uDecay - uFloor, 0.0) * uAmount;
+  // only colored light leaves a trail – grey grid lines / dim specks never smear into a grey film
+  float chroma = max(trail.r, max(trail.g, trail.b)) - min(trail.r, min(trail.g, trail.b));
+  trail *= smoothstep(0.03, 0.1, chroma);
   gl_FragColor = vec4(max(cur, trail), 1.0);
 }`;
 

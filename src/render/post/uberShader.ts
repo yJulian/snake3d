@@ -6,8 +6,9 @@ import { ShaderMaterial, Vector2 } from 'three';
  * and an idle effect costs (almost) nothing.
  *
  * Rules kept throughout: out-of-frame UVs sample black, color changes are multiplicative
- * or luminance-proportional so black stays #000 (only the sparse speed streaks add light).
- * Works in linear space (before OutputPass).
+ * or luminance-proportional so black stays #000 – no effect adds light of its own.
+ * Works in linear space (before OutputPass). The final grade always runs: hue-preserving
+ * highlight roll-off (saturated colors glow instead of clipping to white) + black floor.
  */
 
 const vertexShader = /* glsl */ `
@@ -35,6 +36,8 @@ varying vec2 vUv;
 
 #define PI 3.14159265
 #define TAU 6.28318531
+#define KNEE 0.7          // linear peak value where highlight compression starts
+#define BLACK_FLOOR 0.012 // linear peak value below which light fades to #000 (grid ~0.023)
 
 // ---- hashes (Dave Hoskins, "hash without sine") ----------------------------
 float hash11(float p) { p = fract(p * 0.1031); p *= p + 33.33; p *= p + p; return fract(p); }
@@ -212,13 +215,23 @@ void main() {
 
   // ---- speed: chromatic aberration growing towards the edges ----
   vec2 fromC = uv - 0.5;
-  if (uSpeed > 0.001) caOff += fromC * 0.03 * uSpeed;
+  float edge = 0.0;      // 0 in the middle .. 1 at the frame edge (speed only)
+  if (uSpeed > 0.001) {
+    edge = smoothstep(0.25, 0.95, length(fromC * asp) / length(asp * 0.5));
+    caOff += fromC * 0.035 * uSpeed * edge;
+  }
 
   // ---- sampling: radial zoom blur (speed) or a single (split) tap ----
   vec3 col;
   bool split = dot(caOff, caOff) > 1e-9;
   if (uSpeed > 0.001) {
-    float amt = 0.09 * uSpeed;
+    // Streaks = content smeared along flickering radial lanes (no added light, so they take
+    // the color of what passes by and black stays black). Center stays sharp for steering.
+    float lanes = 96.0;
+    float a = (atan(fromC.y * aspect, fromC.x) / TAU + 0.5) * lanes;
+    float lane = step(0.55, hash12(vec2(floor(a), floor(t * 7.0))))
+               * (1.0 - smoothstep(0.15, 0.5, abs(fract(a) - 0.5)));
+    float amt = uSpeed * edge * (0.02 + 0.09 * lane);
     float jit = hash12(gl_FragCoord.xy) * 0.5;         // de-band the streaks
     vec3 acc = vec3(0.0);
     float wsum = 0.0;
@@ -234,6 +247,8 @@ void main() {
   }
 
   // ---- rain: soft-focus glass outside the drops (golden-angle disc) ----
+  // Only bright content (snake, items, glow) goes soft; dim grid lines stay crisp so the
+  // board never turns into a grey film.
   if (rainBlur > 0.01) {
     vec2 px = rainBlur * 4.0 * uPixelRatio / uResolution;
     vec3 acc = col;
@@ -242,7 +257,9 @@ void main() {
       float ang = fi * 2.39996;
       acc += tap(uv + vec2(cos(ang), sin(ang)) * sqrt(fi / 10.0) * px);
     }
-    col = acc / 11.0;
+    acc /= 11.0;
+    float bright = smoothstep(0.03, 0.15, max(acc.r, max(acc.g, acc.b)));
+    col = mix(col, acc, bright);
     col *= 1.0 - 0.18 * rainBlur;                      // misted glass is a bit dimmer
   }
   col *= 1.0 + 0.3 * mask;                             // drops focus light
@@ -261,6 +278,9 @@ void main() {
     }
     col = mix(col, hueRotate(col, t * 1.4), uTrip);
   }
+
+  // ---- speed: tunnel vignette ----
+  if (uSpeed > 0.001) col *= 1.0 - 0.4 * uSpeed * edge * edge;
 
   // ---- slow: drained, cold colors + vignette ----
   if (uSlow > 0.001) {
@@ -287,27 +307,23 @@ void main() {
     col *= 1.0 - uGlitch * 0.5 * smoothstep(0.6, 1.4, length(c * c));
   }
 
-  // ---- speed: sparse radial streaks (the only additive light; tiny & transient) ----
-  if (uSpeed > 0.001) {
-    vec2 d = (vUv - 0.5) * asp;
-    float r = length(d);
-    float lanes = 140.0;
-    float a = (atan(d.y, d.x) / TAU + 0.5) * lanes;
-    float h = hash11(floor(a));
-    float flow = fract(r * 1.4 - t * (1.6 + h * 2.0) + h * 10.0);
-    float streak = step(0.86, h) * smoothstep(0.3, 0.75, r)
-                 * smoothstep(0.0, 0.08, flow) * (1.0 - smoothstep(0.25, 0.5, flow))
-                 * (1.0 - smoothstep(0.1, 0.45, abs(fract(a) - 0.5)));
-    col += vec3(0.55, 0.8, 1.0) * streak * uSpeed * 0.12;
-  }
-
   // ---- goldflash: warm, luminance-proportional gold boost (bloom does the glow) ----
   if (uGold > 0.001) {
     col *= mix(vec3(1.0), vec3(1.2, 1.0, 0.7), uGold * 0.6);
     col += vec3(1.0, 0.72, 0.25) * luma(col) * uGold * 1.4;
   }
 
-  gl_FragColor = vec4(max(col, 0.0), 1.0);
+  // ---- grade: hue-preserving highlight roll-off + black floor ----
+  col = max(col, 0.0);
+  float peak = max(col.r, max(col.g, col.b));
+  if (peak > KNEE) {
+    float soft = KNEE + (1.0 - KNEE) * (1.0 - exp(-(peak - KNEE) / (1.0 - KNEE)));
+    col *= soft / peak;                                // same hue & saturation, peak < 1
+    col = mix(col, vec3(soft), clamp((peak - 1.2) * 0.06, 0.0, 0.18)); // faint hot core
+  }
+  col *= smoothstep(0.0, BLACK_FLOOR, peak);           // faint bloom haze → true black
+
+  gl_FragColor = vec4(col, 1.0);
 }`;
 
 export type UberUniformName =

@@ -11,12 +11,19 @@ import { createUberMaterial, type UberUniformName } from './uberShader';
 /**
  * Pass chain:
  *   RenderPass → PhosphorPass (ghost only) → UnrealBloomPass (always, gold-boosted)
- *   → Uber ShaderPass (all screen effects, off when idle) → OutputPass (tone map + sRGB).
- * Bloom runs before the uber pass so distortions also bend the glow.
+ *   → Uber ShaderPass (screen effects + always-on grade) → OutputPass (sRGB).
+ * Bloom runs before the uber pass so distortions also bend the glow. The uber pass always
+ * runs: its final grade compresses highlights hue-preservingly (no burn-out to white) and
+ * pulls faint bloom haze down to true black.
  */
 
-/** Always-on subtle glow so colored snakes/items shine on black. High-pass keeps black at #000. */
-const BLOOM = { strength: 0.55, radius: 0.35, threshold: 0.18 } as const;
+/** Always-on glow so colored snakes/items shine on black. Tight: no screen-wide haze. */
+const BLOOM = { strength: 0.6, radius: 0, threshold: 0.3 } as const;
+/**
+ * Per-mip weights (small → wide). three's defaults (1, .8, .6, .4, .2) plus radius spread the
+ * glow over the whole screen and lift black; this keeps a tight halo with a soft short tail.
+ */
+const BLOOM_FACTORS = [1.0, 0.65, 0.3, 0.1, 0.03];
 /** Gold tint for the bloom mips during goldflash (linear RGB). */
 const GOLD = new Vector3(1.0, 0.62, 0.16);
 const WHITE = new Vector3(1, 1, 1);
@@ -45,6 +52,7 @@ export function createPostProcessor(webgl: WebGLRenderer, scene: Scene, camera: 
   const uber = new ShaderPass(uberMaterial);
   const output = new OutputPass();
   const u = uberMaterial.uniforms;
+  bloom.compositeMaterial.uniforms.bloomFactors.value = BLOOM_FACTORS;
 
   composer.addPass(renderPass);
   composer.addPass(phosphor);
@@ -59,21 +67,15 @@ export function createPostProcessor(webgl: WebGLRenderer, scene: Scene, camera: 
       lastDt = dtSec;
       u.uTime.value = timeSec % TIME_WRAP_SEC;
 
-      let any = false;
-      for (const [id, name] of UNIFORM_FOR) {
-        const v = Math.min(1, Math.max(0, fx[id]));
-        u[name].value = v;
-        if (v > 0.001) any = true;
-      }
-      uber.enabled = any;
+      for (const [id, name] of UNIFORM_FOR) u[name].value = Math.min(1, Math.max(0, fx[id]));
 
       phosphor.setParams(fx.ghost, dtSec);
 
       // goldflash: strong, wide, golden bloom burst
       const g = Math.min(1, Math.max(0, fx.goldflash));
-      bloom.strength = BLOOM.strength + 2.2 * g;
-      bloom.radius = BLOOM.radius + 0.4 * g;
-      bloom.threshold = BLOOM.threshold * (1 - 0.75 * g);
+      bloom.strength = BLOOM.strength + 0.9 * g;
+      bloom.radius = BLOOM.radius + 0.1 * g;
+      bloom.threshold = BLOOM.threshold * (1 - 0.5 * g);
       for (const tint of bloom.bloomTintColors) tint.copy(WHITE).lerp(GOLD, g);
     },
 
