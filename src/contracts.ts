@@ -24,6 +24,10 @@ export { TICK_HZ } from './sim/step';
 export const SKINS = ['classic', 'rainbow', 'pumpkin', 'neon', 'lava', 'galaxy'] as const;
 export type SkinId = (typeof SKINS)[number];
 
+/** View modes: '3d' = tilted perspective camera with 3D snake/items, '2d' = top-down camera with flat shapes. */
+export const VIEW_MODES = ['3d', '2d'] as const;
+export type ViewMode = (typeof VIEW_MODES)[number];
+
 // ---------------------------------------------------------------------------
 // src/render/index.ts: export function createRenderer(container: HTMLElement): GameRenderer
 
@@ -45,6 +49,11 @@ export interface GameRenderer {
   update(prev: GameState, curr: GameState, alpha: number, timeSec: number, fx: EffectIntensities): void;
   /** One-shot reactions (eat particles, death flash, spawn pop). */
   onEvents(events: readonly GameEvent[]): void;
+  /**
+   * Switches between the 3D view and the flat top-down 2D view (same Camera instance, eased transition).
+   * Safe to call at any time (also mid-game); the first call before the first update() applies instantly.
+   */
+  setViewMode(mode: ViewMode): void;
   /** Sets webgl size/pixel ratio and camera aspect. */
   resize(width: number, height: number): void;
   dispose(): void;
@@ -80,6 +89,8 @@ export interface InputHandlers {
   onRestart: () => void;
   /** Digit keys 0–9 (only wired by main.ts in dev mode). */
   onDevKey: (digit: number) => void;
+  /** V – toggle between 3D and 2D view. */
+  onToggleView: () => void;
 }
 
 /**
@@ -105,6 +116,8 @@ export interface UIHandlers {
   onRestart: () => void;
   /** Resume button on the pause screen. */
   onResume: () => void;
+  /** View switch in the menu (fires immediately, the menu background is the board). */
+  onViewChange: (mode: ViewMode) => void;
 }
 
 /**
@@ -121,5 +134,9 @@ export interface GameUI {
   setHandlers(handlers: Partial<UIHandlers>): void;
   /** Last skin chosen (from localStorage), used for the first game. */
   getSelectedSkin(): SkinId;
+  /** Last view mode chosen (from localStorage "snake3d.view"), default '3d'. */
+  getSelectedView(): ViewMode;
+  /** Sets and persists the view mode shown in the menu (e.g. after the V key). Does NOT call onViewChange. */
+  setSelectedView(mode: ViewMode): void;
   dispose(): void;
 }

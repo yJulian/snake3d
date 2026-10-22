@@ -18,7 +18,14 @@ export interface Layout {
   oz: number;
 }
 
-export class SnakeView {
+/** Common surface of the 3D and 2D snake views. */
+export interface SnakeLike {
+  deadSince: number;
+  update(p: Player, segs: Vec2[], t: number, lay: Layout, ghost: number): void;
+  dispose(): void;
+}
+
+export class SnakeView implements SnakeLike {
   readonly group = new THREE.Group();
   private mesh: THREE.InstancedMesh;
   private capacity = 64;

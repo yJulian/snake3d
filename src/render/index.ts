@@ -1,12 +1,14 @@
 import * as THREE from 'three';
-import type { EffectIntensities, GameRenderer } from '../contracts';
+import type { EffectIntensities, GameRenderer, ViewMode } from '../contracts';
 import { ITEMS, interpolateSegments } from '../contracts';
 import type { GameEvent, GameState, Item } from '../sim/types';
 import { createGrid, type GridView } from './grid';
-import { createItemKit, ItemView } from './items';
+import { createItemKit, ItemView, type ItemViewLike } from './items';
+import { createItemKit2D, Item2DView } from './items2d';
 import { Particles } from './particles';
 import { createSceneKit } from './scene';
-import { SnakeView, type Layout } from './snake';
+import { SnakeView, type Layout, type SnakeLike } from './snake';
+import { Snake2DView } from './snake2d';
 import { getSkin } from './skins';
 
 /** Screen margin kept while the board tumbles (fitCamera uses 1.12 for the resting board). */
@@ -21,6 +23,7 @@ export function createRenderer(container: HTMLElement): GameRenderer {
   const kit = createSceneKit();
   const { scene, camera, boardGroup } = kit;
   const itemKit = createItemKit();
+  const itemKit2D = createItemKit2D();
   const particles = new Particles(boardGroup);
 
   const lay: Layout = { ox: 0, oz: 0 };
@@ -33,8 +36,12 @@ export function createRenderer(container: HTMLElement): GameRenderer {
   let viewW = 1;
   let viewH = 1;
   let stamp = 0;
-  const snakes = new Map<string, SnakeView>();
-  const items = new Map<number, ItemView>();
+  let mode: ViewMode = '3d';
+  let framed = false; // true after the first update(): later mode changes ease the camera
+  let silentRebuild = false; // views recreated by a mode switch skip the spawn pop
+  const snakes = new Map<string, SnakeLike>();
+  const items = new Map<number, ItemViewLike>();
+  const deadMemo = new Map<string, number>();
 
   function clearViews(): void {
     for (const v of snakes.values()) v.dispose();
@@ -52,7 +59,7 @@ export function createRenderer(container: HTMLElement): GameRenderer {
     let ext = 0;
     for (let i = 0; i < 8; i++) {
       tmpCorner
-        .set(((i & 1 ? 1 : -1) * cols) / 2, i & 4 ? 1.2 : 0, ((i & 2 ? 1 : -1) * rows) / 2)
+        .set(((i & 1 ? 1 : -1) * cols) / 2, i & 4 ? kit.contentHeight : 0, ((i & 2 ? 1 : -1) * rows) / 2)
         .applyMatrix4(boardGroup.matrixWorld)
         .project(camera);
       ext = Math.max(ext, Math.abs(tmpCorner.x), Math.abs(tmpCorner.y));
@@ -87,6 +94,8 @@ export function createRenderer(container: HTMLElement): GameRenderer {
       }
       if (curr.tick < lastTick) clearViews(); // new game
       lastTick = curr.tick;
+      framed = true;
+      kit.update(dt);
 
       // Snakes
       const live = new Set<string>();
@@ -94,7 +103,8 @@ export function createRenderer(container: HTMLElement): GameRenderer {
         live.add(p.id);
         let v = snakes.get(p.id);
         if (!v) {
-          v = new SnakeView(boardGroup, p.skinId);
+          v = mode === '2d' ? new Snake2DView(boardGroup, p.skinId) : new SnakeView(boardGroup, p.skinId);
+          v.deadSince = deadMemo.get(p.id) ?? -1;
           snakes.set(p.id, v);
         }
         v.update(p, interpolateSegments(p, alpha), timeSec, lay, fx.ghost);
@@ -116,7 +126,11 @@ export function createRenderer(container: HTMLElement): GameRenderer {
           v = undefined;
         }
         if (!v) {
-          v = new ItemView(it.kind, itemKit, boardGroup, timeSec, it.uid);
+          const born = silentRebuild ? timeSec - 10 : timeSec;
+          v =
+            mode === '2d'
+              ? new Item2DView(it.kind, itemKit2D, boardGroup, born, it.uid)
+              : new ItemView(it.kind, itemKit, boardGroup, born, it.uid);
           items.set(it.uid, v);
         }
         v.stamp = stamp;
@@ -134,6 +148,8 @@ export function createRenderer(container: HTMLElement): GameRenderer {
         }
       }
 
+      silentRebuild = false;
+      deadMemo.clear();
       particles.update(dt);
 
       // Tumble: smooth, returns exactly to identity at 0; shrinks the board so it never leaves the frame
@@ -166,6 +182,18 @@ export function createRenderer(container: HTMLElement): GameRenderer {
         }
       }
     },
+    setViewMode(next: ViewMode) {
+      if (next === mode) return;
+      mode = next;
+      kit.setView(next, framed);
+      // Snakes/items are rebuilt lazily by the next update() in the new representation.
+      for (const [id, v] of snakes) deadMemo.set(id, v.deadSince);
+      for (const v of snakes.values()) v.dispose();
+      snakes.clear();
+      for (const v of items.values()) v.dispose();
+      items.clear();
+      silentRebuild = true;
+    },
     resize(width: number, height: number) {
       viewW = Math.max(1, width);
       viewH = Math.max(1, height);
@@ -180,6 +208,7 @@ export function createRenderer(container: HTMLElement): GameRenderer {
       particles.dispose();
       grid?.dispose();
       itemKit.dispose();
+      itemKit2D.dispose();
       kit.dispose();
       webgl.dispose();
       webgl.domElement.remove();

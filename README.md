@@ -20,6 +20,7 @@ Weitere Skripte: `npm run typecheck`, `npm run preview`.
 | Richtung | `W` `A` `S` `D` oder Pfeiltasten; auf Touch-Geräten wischen |
 | Pause / weiter | `Esc` oder `P` |
 | Neustart (nach Game Over) | `R` oder `Enter` |
+| Ansicht 3D / 2D | `V` (überall); im Menü auch Umschalter bzw. `↑` `↓` |
 | Dev-Items (nur `npm run dev`) | Ziffern `1`–`0`, siehe unten |
 
 Dev-Zuordnung (`DEV_KEYS` in `src/main.ts`), wirkt auf den lokalen Spieler, nur wenn `import.meta.env.DEV` gesetzt ist:
@@ -31,6 +32,10 @@ Dev-Zuordnung (`DEV_KEYS` in `src/main.ts`), wirkt auf den lokalen Spieler, nur 
 | `3` | Sanduhr | `8` | Geist |
 | `4` | Regen | `9` | Totenkopf |
 | `5` | Pilz | `0` | Schere |
+
+## Ansicht
+
+Zwei Ansichtsmodi: `3d` (schräge Perspektivkamera, Schlange und Items als 3D-Objekte) und `2d` (klassisch flach: Kamera senkrecht von oben mit kleinem FOV, Schlange und Items als flache Formen im Spielfeld). Umschalten mit `V` in jedem Screen oder über den Umschalter im Menü (wirkt sofort, auch mitten im Spiel, mit weichem Kameraübergang). Die Wahl steht im localStorage (`snake3d.view`). Der Tumble-Effekt kippt das Brett auch in 2D. Umsetzung: `ViewMode`/`VIEW_MODES` in `src/contracts.ts`, `GameRenderer.setViewMode`; 2D-Varianten in `src/render/snake2d.ts` und `src/render/items2d.ts`, Kamera in `src/render/scene.ts`.
 
 ## Items
 
@@ -78,7 +83,7 @@ Multiplayer ist noch nicht implementiert. Das geplante Vorgehen (WebRTC DataChan
 1. `src/sim/types.ts`: `ItemId` um die neue ID erweitern. Bei einem neuen Effekt zusätzlich `EffectId`.
 2. `src/sim/items.ts`: Eintrag in `ITEMS` (Name, Farbe, Gewicht, Effekt, Dauer, Polarität, Wachstum, Punkte, Lebensdauer).
 3. `src/sim/effects.ts`: Bei neuem Effekt `EFFECT_IDS` und `EFFECT_FADE` ergänzen.
-4. `src/render/items.ts`: Eintrag in `builders` (Record über `ItemId`, daher Pflicht). Optional Drehung in `SPIN`.
+4. `src/render/items.ts`: Eintrag in `builders` (Record über `ItemId`, daher Pflicht). Optional Drehung in `SPIN`. Ebenso `src/render/items2d.ts` (flaches Icon für den 2D-Modus).
 5. `src/ui/texts.ts`: `ITEM_DESCRIPTIONS` (Pflicht, da `Record<ItemId, string>`). Optional `EFFECT_TOASTS`.
 6. Bei visuellem Effekt: Intensität in `src/render/post/index.ts` bzw. `uberShader.ts` anbinden.
 7. Optional: Dev-Taste in `DEV_KEYS` (`src/main.ts`).
@@ -86,5 +91,5 @@ Multiplayer ist noch nicht implementiert. Das geplante Vorgehen (WebRTC DataChan
 
 ## Neuen Skin ergänzen
 
-1. `src/render/skins.ts`: Skin-Objekt mit `id`, `colorAt`, `headColor`, `createHead` (optional `segmentScale`, `headScale`) anlegen und in die `for`-Schleife am Dateiende aufnehmen, die `registerSkin` aufruft.
+1. `src/render/skins.ts`: Skin-Objekt mit `id`, `colorAt`, `headColor`, `createHead` (optional `segmentScale`, `headScale`, `createHead2D` für den flachen Kopf im 2D-Modus) anlegen und in die `for`-Schleife am Dateiende aufnehmen, die `registerSkin` aufruft.
 2. `src/contracts.ts`: Die ID in das Array `SKINS` eintragen. Das Menü übernimmt sie automatisch.

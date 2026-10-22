@@ -1,8 +1,8 @@
-import type { GameUI, Screen, UIHandlers } from '../contracts';
+import type { GameUI, Screen, UIHandlers, ViewMode } from '../contracts';
 import type { GameState, PlayerId } from '../sim/types';
 import { createHud } from './hud';
 import { createMenu } from './menu';
-import { loadHighscore, loadSkin, saveHighscore, saveSkin } from './store';
+import { loadHighscore, loadSkin, loadView, saveHighscore, saveSkin, saveView } from './store';
 import { injectStyles } from './styles';
 
 function el(cls: string, parent?: HTMLElement, tag = 'div'): HTMLElement {
@@ -34,7 +34,13 @@ export function createUI(root: HTMLElement): GameUI {
   const hud = createHud();
   host.appendChild(hud.el);
 
-  const menu = createMenu(loadSkin(), saveSkin, (s) => handlers.onStart?.(s));
+  const menu = createMenu(
+    loadSkin(),
+    saveSkin,
+    (s) => handlers.onStart?.(s),
+    loadView(),
+    (m) => { saveView(m); handlers.onViewChange?.(m); },
+  );
   host.appendChild(menu.el);
 
   const pause = el('s3d-screen', host);
@@ -63,6 +69,7 @@ export function createUI(root: HTMLElement): GameUI {
     if (screen !== 'menu' || e.repeat) return;
     if (e.code === 'ArrowLeft') { e.preventDefault(); menu.select(-1); }
     else if (e.code === 'ArrowRight') { e.preventDefault(); menu.select(1); }
+    else if (e.code === 'ArrowUp' || e.code === 'ArrowDown') { e.preventDefault(); menu.toggleView(); }
     else if (e.code === 'Enter' || e.code === 'NumpadEnter') { e.preventDefault(); handlers.onStart?.(menu.getSkin()); }
   };
   window.addEventListener('keydown', onKey);
@@ -109,6 +116,11 @@ export function createUI(root: HTMLElement): GameUI {
       handlers = { ...handlers, ...next };
     },
     getSelectedSkin: () => menu.getSkin(),
+    getSelectedView: () => menu.getView(),
+    setSelectedView(mode: ViewMode) {
+      menu.setView(mode);
+      saveView(mode);
+    },
     dispose() {
       window.removeEventListener('keydown', onKey);
       menu.dispose();

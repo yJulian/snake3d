@@ -23,6 +23,7 @@ export function attachKeyboard(
     if (dir) push(dir);
     else if (e.code === 'Escape' || e.code === 'KeyP') h.onPause?.();
     else if (e.code === 'KeyR' || e.code === 'Enter' || e.code === 'NumpadEnter') h.onRestart?.();
+    else if (e.code === 'KeyV') h.onToggleView?.();
     else if (/^(Digit|Numpad)\d$/.test(e.code)) h.onDevKey?.(Number(e.code.slice(-1)));
   };
   target.addEventListener('keydown', onKey);

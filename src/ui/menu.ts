@@ -1,4 +1,4 @@
-import { SKINS, type SkinId } from '../contracts';
+import { SKINS, VIEW_MODES, type SkinId, type ViewMode } from '../contracts';
 import { ITEM_IDS, ITEMS } from '../sim/items';
 import { ITEM_DESCRIPTIONS } from './texts';
 
@@ -6,6 +6,10 @@ export interface Menu {
   el: HTMLElement;
   getSkin(): SkinId;
   select(delta: number): void;
+  getView(): ViewMode;
+  /** Updates the toggle; notifies onViewChange only when `notify` is set. */
+  setView(mode: ViewMode, notify?: boolean): void;
+  toggleView(): void;
   dispose(): void;
 }
 
@@ -13,10 +17,17 @@ const SKIN_LABEL: Record<SkinId, string> = {
   classic: 'Classic', rainbow: 'Rainbow', pumpkin: 'Pumpkin', neon: 'Neon', lava: 'Lava', galaxy: 'Galaxy',
 };
 
-export function createMenu(initial: SkinId, onChange: (s: SkinId) => void, onStart: (s: SkinId) => void): Menu {
+export function createMenu(
+  initial: SkinId,
+  onChange: (s: SkinId) => void,
+  onStart: (s: SkinId) => void,
+  initialView: ViewMode,
+  onViewChange: (m: ViewMode) => void,
+): Menu {
   const el = document.createElement('div');
   el.className = 's3d-screen menu';
   let skin = initial;
+  let view = initialView;
 
   const title = document.createElement('h1');
   title.className = 's3d-title';
@@ -39,6 +50,22 @@ export function createMenu(initial: SkinId, onChange: (s: SkinId) => void, onSta
   }
   el.appendChild(skins);
 
+  const viewRow = document.createElement('div');
+  viewRow.className = 's3d-view';
+  viewRow.append('Ansicht');
+  const viewButtons = new Map<ViewMode, HTMLButtonElement>();
+  for (const m of VIEW_MODES) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.tabIndex = -1;
+    b.className = 's3d-vbtn';
+    b.textContent = m.toUpperCase();
+    b.addEventListener('click', () => { setView(m, true); b.blur(); });
+    viewRow.appendChild(b);
+    viewButtons.set(m, b);
+  }
+  el.appendChild(viewRow);
+
   const start = document.createElement('button');
   start.type = 'button';
   start.tabIndex = -1;
@@ -49,7 +76,7 @@ export function createMenu(initial: SkinId, onChange: (s: SkinId) => void, onSta
 
   const hint = document.createElement('div');
   hint.className = 's3d-hint';
-  hint.innerHTML = 'Steuerung: WASD / Pfeiltasten oder Wischen<br>Esc / P Pause · R Neustart · Enter Start · &larr; &rarr; Skin';
+  hint.innerHTML = 'Steuerung: WASD / Pfeiltasten oder Wischen<br>Esc / P Pause · R Neustart · Enter Start · &larr; &rarr; Skin<br>&uarr; &darr; / V Ansicht (3D / 2D)';
   el.appendChild(hint);
 
   const legend = document.createElement('div');
@@ -72,6 +99,13 @@ export function createMenu(initial: SkinId, onChange: (s: SkinId) => void, onSta
 
   function render(): void {
     for (const [id, b] of buttons) b.classList.toggle('sel', id === skin);
+    for (const [m, b] of viewButtons) b.classList.toggle('sel', m === view);
+  }
+  function setView(m: ViewMode, notify = false): void {
+    const changed = m !== view;
+    view = m;
+    render();
+    if (notify && changed) onViewChange(m);
   }
   function set(id: SkinId): void {
     skin = id;
@@ -83,6 +117,9 @@ export function createMenu(initial: SkinId, onChange: (s: SkinId) => void, onSta
   return {
     el,
     getSkin: () => skin,
+    getView: () => view,
+    setView,
+    toggleView: () => setView(view === '3d' ? '2d' : '3d', true),
     select(delta) {
       const i = SKINS.indexOf(skin);
       set(SKINS[(i + delta + SKINS.length) % SKINS.length]);

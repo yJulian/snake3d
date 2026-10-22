@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { circleShape, flatGeo, flatMat, flatMesh } from './flat';
 
 /**
  * Skin API. Add a new skin by calling registerSkin({...}) (and adding its id to SKINS in contracts.ts).
@@ -19,6 +20,8 @@ export interface Skin {
   colorAt(i: number, len: number, t: number, out: THREE.Color): void;
   headColor(t: number, out: THREE.Color): void;
   createHead(): HeadDecoration;
+  /** Optional flat head decoration for the 2D view (XZ plane, local +X is forward). Defaults to two flat eyes. */
+  createHead2D?(): HeadDecoration;
   segmentScale?(i: number, len: number, t: number): number;
   headScale?: readonly [number, number, number];
 }
@@ -103,6 +106,79 @@ function pumpkinHead(): HeadDecoration {
   };
 }
 
+export function eyesHead2D(): HeadDecoration {
+  const g = new THREE.Group();
+  const eyeGeo = flatGeo(circleShape(0, 0, 0.14));
+  const pupilGeo = flatGeo(circleShape(0, 0, 0.07));
+  const eyeMat = flatMat(0xffffff);
+  const pupilMat = flatMat(0x000000);
+  const deadMat = flatMat(0xff3030);
+  const pupils: THREE.Mesh[] = [];
+  for (const s of [-1, 1]) {
+    const e = flatMesh(eyeGeo, eyeMat, 42);
+    e.position.set(0.17, 0.02, 0.24 * s);
+    const p = flatMesh(pupilGeo, pupilMat, 43);
+    p.position.set(0.17 + 0.05, 0.03, 0.24 * s);
+    pupils.push(p);
+    g.add(e, p);
+  }
+  return {
+    object: g,
+    update(_t, alive) {
+      for (const p of pupils) p.material = alive ? pupilMat : deadMat;
+    },
+    dispose() {
+      eyeGeo.dispose();
+      pupilGeo.dispose();
+      eyeMat.dispose();
+      pupilMat.dispose();
+      deadMat.dispose();
+    },
+  };
+}
+
+function pumpkinHead2D(): HeadDecoration {
+  const g = new THREE.Group();
+  const glow = flatMat(0xffffff);
+  const stemMat = flatMat(0x2f9e2f);
+  const eye = new THREE.Shape();
+  eye.moveTo(0.12, 0).lineTo(-0.06, -0.1).lineTo(-0.06, 0.1).closePath();
+  const eyeGeo = flatGeo(eye);
+  const mouth = new THREE.Shape();
+  // jagged smile on the back half of the head (u = forward, v = side)
+  const pts: [number, number][] = [[-0.04, -0.3], [-0.12, -0.2], [-0.04, -0.1], [-0.12, 0], [-0.04, 0.1], [-0.12, 0.2], [-0.04, 0.3]];
+  mouth.moveTo(pts[0][0], pts[0][1]);
+  for (let i = 1; i < pts.length; i++) mouth.lineTo(pts[i][0], pts[i][1]);
+  mouth.lineTo(-0.3, 0.24).lineTo(-0.3, -0.24).closePath();
+  const mouthGeo = flatGeo(mouth);
+  for (const s of [-1, 1]) {
+    const m = flatMesh(eyeGeo, glow, 42);
+    m.position.set(0.22, 0.02, 0.2 * s);
+    g.add(m);
+  }
+  const mo = flatMesh(mouthGeo, glow, 42);
+  mo.position.set(0, 0.02, 0);
+  g.add(mo);
+  const stemGeo = flatGeo(new THREE.Shape().moveTo(-0.07, -0.05).lineTo(0.05, -0.1).lineTo(0.05, 0.1).lineTo(-0.07, 0.05).closePath());
+  const stem = flatMesh(stemGeo, stemMat, 41);
+  stem.position.set(-0.5, 0.01, 0);
+  g.add(stem);
+  return {
+    object: g,
+    update(t, alive) {
+      const k = alive ? 1.2 + 0.4 * Math.sin(t * 9) * Math.sin(t * 2.3) : 0.2;
+      glow.color.setRGB(1.4 * k, 0.95 * k, 0.05);
+    },
+    dispose() {
+      glow.dispose();
+      stemMat.dispose();
+      eyeGeo.dispose();
+      mouthGeo.dispose();
+      stemGeo.dispose();
+    },
+  };
+}
+
 const classic: Skin = {
   id: 'classic',
   colorAt(i, len, _t, out) {
@@ -139,6 +215,7 @@ const pumpkin: Skin = {
   segmentScale: (i) => (i % 2 === 0 ? 1.0 : 0.88),
   headScale: [1, 0.88, 1.05],
   createHead: pumpkinHead,
+  createHead2D: pumpkinHead2D,
 };
 
 const neon: Skin = {

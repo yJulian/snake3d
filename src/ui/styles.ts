@@ -37,6 +37,9 @@ const CSS = `
 .s3d-skin{background:#000;border:1px solid #333;color:#888;padding:8px 8px 6px;font:inherit;font-size:11px;letter-spacing:.08em;cursor:pointer;
   display:flex;flex-direction:column;align-items:center;gap:6px;width:76px;touch-action:manipulation}
 .s3d-skin.sel{border-color:#ccc;color:#ccc}
+.s3d-view{display:flex;align-items:center;justify-content:center;gap:10px;color:#888;font-size:11px;letter-spacing:.12em;text-transform:uppercase}
+.s3d-vbtn{background:#000;border:1px solid #333;color:#888;padding:6px 14px;font:inherit;letter-spacing:.12em;cursor:pointer;min-height:32px;touch-action:manipulation}
+.s3d-vbtn.sel{border-color:#ccc;color:#ccc}
 .s3d-sw{position:relative;width:52px;height:16px;border-radius:8px;overflow:visible}
 .sw-classic{background:#2ecc40}
 .sw-rainbow{background:linear-gradient(90deg,#f33,#fc3,#3f6,#3cf,#93f,#f33);background-size:200% 100%;animation:s3d-slide 3s linear infinite}

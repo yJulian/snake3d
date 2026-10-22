@@ -1,4 +1,4 @@
-import type { Screen, SkinId } from './contracts';
+import type { Screen, SkinId, ViewMode } from './contracts';
 import { createInput } from './input';
 import { LocalTransport } from './net/transport';
 import { createRenderer } from './render';
@@ -35,6 +35,8 @@ transport.onMessage((msg) => {
 });
 
 let skin: SkinId = ui.getSelectedSkin();
+let view: ViewMode = ui.getSelectedView();
+renderer.setViewMode(view);
 let screen: Screen = 'menu';
 let curr: GameState = newState(skin, 1);
 let prev = curr;
@@ -70,6 +72,11 @@ input.setHandlers({
   onRestart: () => {
     if (screen === 'gameover') startGame(skin);
   },
+  onToggleView: () => {
+    view = view === '3d' ? '2d' : '3d';
+    renderer.setViewMode(view);
+    ui.setSelectedView(view);
+  },
   onDevKey: (digit) => {
     if (!import.meta.env.DEV || screen !== 'playing') return;
     curr = devApplyItem(curr, LOCAL_ID, DEV_KEYS[digit]);
@@ -80,6 +87,10 @@ ui.setHandlers({
   onStart: startGame,
   onRestart: () => startGame(skin),
   onResume: () => screen === 'paused' && setScreen('playing'),
+  onViewChange: (mode) => {
+    view = mode;
+    renderer.setViewMode(mode);
+  },
 });
 
 function simulate(dtSec: number): void {

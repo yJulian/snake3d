@@ -161,7 +161,17 @@ const POP_TIME = 0.35;
 const DIE_TIME = 0.18;
 const BLINK_TICKS = TICK_HZ * 2;
 
-export class ItemView {
+/** Common surface of the 3D and 2D item views. */
+export interface ItemViewLike {
+  readonly kind: ItemId;
+  readonly root: THREE.Object3D;
+  stamp: number;
+  dying: number;
+  update(it: Item, t: number, lay: Layout): boolean;
+  dispose(): void;
+}
+
+export class ItemView implements ItemViewLike {
   readonly root = new THREE.Group();
   readonly body: THREE.Group;
   stamp = 0;

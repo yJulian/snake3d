@@ -1,6 +1,7 @@
-import { SKINS, type SkinId } from '../contracts';
+import { SKINS, VIEW_MODES, type SkinId, type ViewMode } from '../contracts';
 
 const SKIN_KEY = 'snake3d.skin';
+const VIEW_KEY = 'snake3d.view';
 const HI_KEY = 'snake3d.highscore';
 
 export function loadSkin(): SkinId {
@@ -21,4 +22,14 @@ export function loadHighscore(): number {
 }
 export function saveHighscore(n: number): void {
   try { localStorage.setItem(HI_KEY, String(n)); } catch { /* ignore */ }
+}
+export function loadView(): ViewMode {
+  try {
+    const v = localStorage.getItem(VIEW_KEY);
+    if (v && (VIEW_MODES as readonly string[]).includes(v)) return v as ViewMode;
+  } catch { /* storage unavailable */ }
+  return '3d';
+}
+export function saveView(m: ViewMode): void {
+  try { localStorage.setItem(VIEW_KEY, m); } catch { /* ignore */ }
 }
