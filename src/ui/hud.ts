@@ -37,13 +37,16 @@ export function createHud(): Hud {
   const scoreEl = stat(left, 'Score');
   const lenEl = stat(left, 'Länge');
   lenEl.style.fontSize = '16px';
+  const layerEl = stat(left, 'Ebene');
+  layerEl.style.fontSize = '16px';
+  const layerStat = layerEl.parentElement!;
   const pops = div('s3d-pop-wrap', left);
   const hiEl = stat(div('', row), 'Highscore', 'r');
   const fx = div('s3d-fx', el);
 
   let localId: PlayerId | null = null;
   const badges = new Map<EffectId, Badge>();
-  const last = { score: -1, len: -1, hi: -1 };
+  const last = { score: -1, len: -1, hi: -1, layer: '-' };
 
   function badgeFor(e: ActiveEffect): Badge | null {
     let b = badges.get(e.id);
@@ -79,6 +82,14 @@ export function createHud(): Hud {
       if (score !== last.score) { last.score = score; scoreEl.textContent = String(score); }
       const len = p.snake.segments.length;
       if (len !== last.len) { last.len = len; lenEl.textContent = String(len); }
+      // Volume only: current layer of the head (1 = bottom).
+      const { world, depth } = state.config;
+      const layer = world === 'volume' ? `${(p.snake.segments[0]?.z ?? 0) + 1} / ${depth}` : '';
+      if (layer !== last.layer) {
+        last.layer = layer;
+        layerEl.textContent = layer;
+        layerStat.hidden = !layer;
+      }
       const hi = Math.max(highscore, score);
       if (hi !== last.hi) { last.hi = hi; hiEl.textContent = String(hi); }
 

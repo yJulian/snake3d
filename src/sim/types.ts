@@ -1,13 +1,22 @@
 // Pure data types of the simulation. Everything here is plain JSON (no classes, Maps, Sets).
 
-/** Grid coordinates: x grows to the right, y grows downwards (row 0 = top). */
+import type { WorldId } from './world';
+
+/**
+ * Grid coordinates: x grows to the right, y grows downwards (row 0 = top).
+ * z is the layer in 'volume' worlds (0 = bottom) and absent in all 2D worlds.
+ */
 export interface Vec2 {
   x: number;
   y: number;
+  z?: number;
 }
 
-/** 'up' = y-1, 'down' = y+1, 'left' = x-1, 'right' = x+1. */
-export type Dir = 'up' | 'down' | 'left' | 'right';
+/**
+ * 'up' = y-1, 'down' = y+1, 'left' = x-1, 'right' = x+1; 'ascend' = z+1, 'descend' = z-1 (volume only).
+ * On the sphere these are net directions of the current cube face (see world.ts).
+ */
+export type Dir = 'up' | 'down' | 'left' | 'right' | 'ascend' | 'descend';
 
 export type PlayerId = string;
 
@@ -78,13 +87,19 @@ export interface Item {
   kind: ItemId;
   x: number;
   y: number;
+  /** Layer ('volume' only). */
+  z?: number;
   /** Ticks until the item disappears from the board; null = stays forever (apples). */
   ttl: number | null;
 }
 
 export interface GameConfig {
+  /** Board topology (see world.ts). */
+  world: WorldId;
   width: number;
   height: number;
+  /** Layers along z ('volume' only, 1 otherwise). */
+  depth: number;
   seed: number;
   /** Ticks per cell without effects. */
   baseMoveInterval: number;
@@ -98,12 +113,12 @@ export interface GameConfig {
 export type DeathCause = 'wall' | 'self' | 'player';
 
 export type GameEvent =
-  | { type: 'eat'; playerId: PlayerId; itemId: ItemId; x: number; y: number; points: number }
+  | { type: 'eat'; playerId: PlayerId; itemId: ItemId; x: number; y: number; z?: number; points: number }
   | { type: 'death'; playerId: PlayerId; cause: DeathCause }
   | { type: 'effectStart'; playerId: PlayerId; effectId: EffectId; refreshed: boolean }
   | { type: 'effectEnd'; playerId: PlayerId; effectId: EffectId }
-  | { type: 'spawn'; uid: number; itemId: ItemId; x: number; y: number }
-  | { type: 'despawn'; uid: number; itemId: ItemId; x: number; y: number }
+  | { type: 'spawn'; uid: number; itemId: ItemId; x: number; y: number; z?: number }
+  | { type: 'despawn'; uid: number; itemId: ItemId; x: number; y: number; z?: number }
   | { type: 'gameOver' };
 
 export interface GameState {

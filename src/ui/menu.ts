@@ -1,4 +1,4 @@
-import { SKINS, VIEW_MODES, type SkinId, type ViewMode } from '../contracts';
+import { SKINS, VIEW_MODES, WORLD_IDS, type SkinId, type ViewMode, type WorldId } from '../contracts';
 import { ITEM_IDS, ITEMS } from '../sim/items';
 import { ITEM_DESCRIPTIONS } from './texts';
 
@@ -10,6 +10,9 @@ export interface Menu {
   /** Updates the toggle; notifies onViewChange only when `notify` is set. */
   setView(mode: ViewMode, notify?: boolean): void;
   toggleView(): void;
+  getWorld(): WorldId;
+  /** Cycles the world (notifies onWorldChange). */
+  cycleWorld(delta: number): void;
   dispose(): void;
 }
 
@@ -17,17 +20,22 @@ const SKIN_LABEL: Record<SkinId, string> = {
   classic: 'Classic', rainbow: 'Rainbow', pumpkin: 'Pumpkin', neon: 'Neon', lava: 'Lava', galaxy: 'Galaxy',
 };
 
+const WORLD_LABEL: Record<WorldId, string> = { flat: 'Flach', torus: 'Torus', sphere: 'Kugel', volume: '3D-Raum' };
+
 export function createMenu(
   initial: SkinId,
   onChange: (s: SkinId) => void,
   onStart: (s: SkinId) => void,
   initialView: ViewMode,
   onViewChange: (m: ViewMode) => void,
+  initialWorld: WorldId,
+  onWorldChange: (w: WorldId) => void,
 ): Menu {
   const el = document.createElement('div');
   el.className = 's3d-screen menu';
   let skin = initial;
   let view = initialView;
+  let world = initialWorld;
 
   const title = document.createElement('h1');
   title.className = 's3d-title';
@@ -66,6 +74,22 @@ export function createMenu(
   }
   el.appendChild(viewRow);
 
+  const worldRow = document.createElement('div');
+  worldRow.className = 's3d-view';
+  worldRow.append('Welt');
+  const worldButtons = new Map<WorldId, HTMLButtonElement>();
+  for (const w of WORLD_IDS) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.tabIndex = -1;
+    b.className = 's3d-vbtn';
+    b.textContent = WORLD_LABEL[w];
+    b.addEventListener('click', () => { setWorld(w); b.blur(); });
+    worldRow.appendChild(b);
+    worldButtons.set(w, b);
+  }
+  el.appendChild(worldRow);
+
   const start = document.createElement('button');
   start.type = 'button';
   start.tabIndex = -1;
@@ -76,7 +100,7 @@ export function createMenu(
 
   const hint = document.createElement('div');
   hint.className = 's3d-hint';
-  hint.innerHTML = 'Steuerung: WASD / Pfeiltasten oder Wischen<br>Esc / P Pause · R Neustart · Enter Start · &larr; &rarr; Skin<br>&uarr; &darr; / V Ansicht (3D / 2D)';
+  hint.innerHTML = 'Steuerung: WASD / Pfeiltasten oder Wischen<br>3D-Raum: Leertaste / E hoch · Shift / Q runter (Touch: zwei Finger)<br>Esc / P Pause · R Neustart · Enter Start · &larr; &rarr; Skin<br>&uarr; &darr; / V Ansicht (3D / 2D) · Tab Welt';
   el.appendChild(hint);
 
   const legend = document.createElement('div');
@@ -100,6 +124,13 @@ export function createMenu(
   function render(): void {
     for (const [id, b] of buttons) b.classList.toggle('sel', id === skin);
     for (const [m, b] of viewButtons) b.classList.toggle('sel', m === view);
+    for (const [w, b] of worldButtons) b.classList.toggle('sel', w === world);
+  }
+  function setWorld(w: WorldId): void {
+    if (w === world) return;
+    world = w;
+    render();
+    onWorldChange(w);
   }
   function setView(m: ViewMode, notify = false): void {
     const changed = m !== view;
@@ -120,6 +151,11 @@ export function createMenu(
     getView: () => view,
     setView,
     toggleView: () => setView(view === '3d' ? '2d' : '3d', true),
+    getWorld: () => world,
+    cycleWorld(delta) {
+      const i = WORLD_IDS.indexOf(world);
+      setWorld(WORLD_IDS[(i + delta + WORLD_IDS.length) % WORLD_IDS.length]);
+    },
     select(delta) {
       const i = SKINS.indexOf(skin);
       set(SKINS[(i + delta + SKINS.length) % SKINS.length]);

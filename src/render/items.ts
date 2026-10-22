@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { ITEMS, TICK_HZ } from '../contracts';
 import type { Item, ItemId } from '../sim/types';
-import type { Layout } from './snake';
+import type { BoardShape } from './shape';
 
 /** Shared geometries/materials + builders for the item models. */
 export interface ItemKit {
@@ -161,13 +161,18 @@ const POP_TIME = 0.35;
 const DIE_TIME = 0.18;
 const BLINK_TICKS = TICK_HZ * 2;
 
+/** Board cell plus remaining lifetime; dying views keep their last one. */
+export type ItemSpot = Pick<Item, 'x' | 'y' | 'z' | 'ttl'>;
+
 /** Common surface of the 3D and 2D item views. */
 export interface ItemViewLike {
   readonly kind: ItemId;
   readonly root: THREE.Object3D;
   stamp: number;
   dying: number;
-  update(it: Item, t: number, lay: Layout): boolean;
+  /** Last spot passed to update(). */
+  spot: ItemSpot;
+  update(it: ItemSpot, t: number, shape: BoardShape): boolean;
   dispose(): void;
 }
 
@@ -176,6 +181,7 @@ export class ItemView implements ItemViewLike {
   readonly body: THREE.Group;
   stamp = 0;
   dying = -1;
+  spot: ItemSpot = { x: 0, y: 0, ttl: null };
   readonly born: number;
 
   constructor(
@@ -192,9 +198,10 @@ export class ItemView implements ItemViewLike {
     parent.add(this.root);
   }
 
-  update(it: Item, t: number, lay: Layout): boolean {
+  update(it: ItemSpot, t: number, shape: BoardShape): boolean {
     const ph = this.uid * 1.7;
-    this.root.position.set(it.x + lay.ox, 0.55 + 0.1 * Math.sin(t * 2.5 + ph), it.y + lay.oz);
+    this.spot = it;
+    shape.place(this.root, it, 0.55 + 0.1 * Math.sin(t * 2.5 + ph));
     const spin = SPIN[this.kind];
     this.body.rotation.y = spin ? t * spin : Math.sin(t * 1.5 + ph) * 0.45;
     if (this.kind === 'tumble') this.body.rotation.x = t * 1.1;

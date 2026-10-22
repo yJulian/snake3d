@@ -1,8 +1,9 @@
 import * as THREE from 'three';
-import type { Player, Vec2 } from '../sim/types';
+import type { Player } from '../sim/types';
 import { flatGeo, circleShape, flatMat, flatMesh } from './flat';
+import type { SnakePath } from './path';
 import { eyesHead2D, getSkin, type HeadDecoration, type Skin } from './skins';
-import type { Layout, SnakeLike } from './snake';
+import type { SnakeLike } from './snake';
 
 const Y = 0.05;
 const R = 0.45;
@@ -60,7 +61,7 @@ export class Snake2DView implements SnakeLike {
     return d;
   }
 
-  update(p: Player, segs: Vec2[], t: number, lay: Layout, ghost: number): void {
+  update(p: Player, path: SnakePath, t: number, ghost: number): void {
     if (p.skinId !== this.skin.id) {
       this.head.remove(this.deco.object);
       this.deco.dispose();
@@ -76,7 +77,7 @@ export class Snake2DView implements SnakeLike {
     }
     this.group.visible = true;
 
-    const n = segs.length;
+    const n = path.n;
     const count = Math.max(0, 2 * n - 1);
     if (count > this.capacity) {
       while (this.capacity < count) this.capacity *= 2;
@@ -93,7 +94,6 @@ export class Snake2DView implements SnakeLike {
     // Instance order is tail -> head so the head ends up on top.
     let prevScale = 0;
     for (let i = n - 1; i >= 0; i--) {
-      const s = segs[i];
       const m = n - 1 - i;
       const taper = 1 - 0.3 * (i / Math.max(1, n));
       let sc = R * taper * (skin.segmentScale ? skin.segmentScale(i, n, t) : 1);
@@ -103,15 +103,13 @@ export class Snake2DView implements SnakeLike {
 
       if (i < n - 1) {
         // connector between segment i+1 (prev iteration) and i
-        const q = segs[i + 1];
-        dummy.position.set((s.x + q.x) / 2 + lay.ox, Y, (s.y + q.y) / 2 + lay.oz);
-        const ms = Math.min(sc, prevScale) * 0.98;
+        const ms = path.mid(i + 1, Y, dummy.position) ? Math.min(sc, prevScale) * 0.98 : 0;
         dummy.scale.set(ms, 1, ms);
         dummy.updateMatrix();
         mesh.setMatrixAt(2 * m - 1, dummy.matrix);
         mesh.setColorAt(2 * m - 1, cB.lerp(cA, 0.5));
       }
-      dummy.position.set(s.x + lay.ox, Y, s.y + lay.oz);
+      path.at(i, Y, dummy.position);
       dummy.scale.set(sc, 1, sc);
       dummy.updateMatrix();
       mesh.setMatrixAt(2 * m, dummy.matrix);
@@ -124,20 +122,8 @@ export class Snake2DView implements SnakeLike {
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
 
     // Head
-    const h = segs[0];
-    this.head.position.set(h.x + lay.ox, Y, h.y + lay.oz);
-    let dx = 0;
-    let dz = 0;
-    if (n > 1) {
-      dx = h.x - segs[1].x;
-      dz = h.y - segs[1].y;
-    }
-    if (dx * dx + dz * dz < 1e-4) {
-      const d = p.snake.dir;
-      dx = d === 'right' ? 1 : d === 'left' ? -1 : 0;
-      dz = d === 'down' ? 1 : d === 'up' ? -1 : 0;
-    }
-    this.head.rotation.y = Math.atan2(-dz, dx);
+    if (n > 0) path.at(0, Y, this.head.position);
+    path.headQuat(this.head.quaternion);
     const hs = decay > 0 ? Math.max(0, 1 - decay) : 1;
     this.head.scale.set(hs, 1, hs);
     skin.headColor(t, cA);

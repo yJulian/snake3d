@@ -4,6 +4,7 @@ import type { InputHandlers } from '../contracts';
 const DIR_KEYS: Record<string, Dir> = {
   ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down',
   ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right',
+  Space: 'ascend', KeyE: 'ascend', ShiftLeft: 'descend', ShiftRight: 'descend', KeyQ: 'descend',
 };
 const PREVENT = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space']);
 

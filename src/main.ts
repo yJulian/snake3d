@@ -1,4 +1,4 @@
-import type { Screen, SkinId, ViewMode } from './contracts';
+import type { Screen, SkinId, ViewMode, WorldId } from './contracts';
 import { createInput } from './input';
 import { LocalTransport } from './net/transport';
 import { createRenderer } from './render';
@@ -36,6 +36,7 @@ transport.onMessage((msg) => {
 
 let skin: SkinId = ui.getSelectedSkin();
 let view: ViewMode = ui.getSelectedView();
+let world: WorldId = ui.getSelectedWorld();
 renderer.setViewMode(view);
 let screen: Screen = 'menu';
 let curr: GameState = newState(skin, 1);
@@ -45,7 +46,7 @@ let alpha = 0;
 let pendingEvents: GameEvent[] = [];
 
 function newState(skinId: SkinId, seed = (Date.now() ^ (Math.random() * 0x100000000)) >>> 0): GameState {
-  return createInitialState({ seed }, [{ id: LOCAL_ID, skinId }]);
+  return createInitialState({ seed, world }, [{ id: LOCAL_ID, skinId }]);
 }
 
 function setScreen(s: Screen): void {
@@ -91,13 +92,19 @@ ui.setHandlers({
     view = mode;
     renderer.setViewMode(mode);
   },
+  onWorldChange: (w) => {
+    world = w;
+    if (screen === 'menu') curr = prev = newState(skin, 1); // menu background shows the new board
+  },
 });
 
 function simulate(dtSec: number): void {
   acc += dtSec;
   while (acc >= TICK_SEC) {
     acc -= TICK_SEC;
-    for (const cmd of input.poll(curr.tick + INPUT_DELAY)) transport.send({ type: 'input', cmd });
+    for (const cmd of input.poll(curr.tick + INPUT_DELAY)) {
+      transport.send({ type: 'input', cmd: { ...cmd, dir: renderer.mapInput(cmd.playerId, cmd.dir) } });
+    }
     const tick = curr.tick;
     const due = inbox.filter((c) => c.tick <= tick);
     inbox = inbox.filter((c) => c.tick > tick);

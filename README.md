@@ -18,9 +18,11 @@ Weitere Skripte: `npm run typecheck`, `npm run preview`.
 | Aktion | Eingabe |
 | --- | --- |
 | Richtung | `W` `A` `S` `D` oder Pfeiltasten; auf Touch-Geräten wischen |
+| Hoch / runter (nur 3D-Raum) | `Leertaste` / `E` hoch, `Shift` / `Q` runter; Gamepad `R1` / `L1`; Touch: mit zwei Fingern vertikal wischen |
 | Pause / weiter | `Esc` oder `P` |
 | Neustart (nach Game Over) | `R` oder `Enter` |
 | Ansicht 3D / 2D | `V` (überall); im Menü auch Umschalter bzw. `↑` `↓` |
+| Welt | im Menü Umschalter bzw. `Tab` / `Shift+Tab` |
 | Dev-Items (nur `npm run dev`) | Ziffern `1`–`0`, siehe unten |
 
 Dev-Zuordnung (`DEV_KEYS` in `src/main.ts`), wirkt auf den lokalen Spieler, nur wenn `import.meta.env.DEV` gesetzt ist:
@@ -36,6 +38,21 @@ Dev-Zuordnung (`DEV_KEYS` in `src/main.ts`), wirkt auf den lokalen Spieler, nur 
 ## Ansicht
 
 Zwei Ansichtsmodi: `3d` (schräge Perspektivkamera, Schlange und Items als 3D-Objekte) und `2d` (klassisch flach: Kamera senkrecht von oben mit kleinem FOV, Schlange und Items als flache Formen im Spielfeld). Umschalten mit `V` in jedem Screen oder über den Umschalter im Menü (wirkt sofort, auch mitten im Spiel, mit weichem Kameraübergang). Die Wahl steht im localStorage (`snake3d.view`). Der Tumble-Effekt kippt das Brett auch in 2D. Umsetzung: `ViewMode`/`VIEW_MODES` in `src/contracts.ts`, `GameRenderer.setViewMode`; 2D-Varianten in `src/render/snake2d.ts` und `src/render/items2d.ts`, Kamera in `src/render/scene.ts`.
+
+## Welten
+
+Vier Spielfeld-Topologien (`WorldId`/`WORLD_IDS` in `src/sim/world.ts`). Die Wahl erfolgt im Menü und steht im localStorage (`snake3d.world`). Ein neues Spielfeld startet flach und verwandelt sich animiert (ca. 1,8 s) in seine Form. Die 2D-Ansicht zeigt immer das flache Layout. Beim Umschalten rollt sich die Form wieder auf bzw. aus.
+
+| Welt | Größe | Regeln | Darstellung in 3D |
+| --- | --- | --- | --- |
+| `flat` (Flach) | 24 × 24 | Wände | wie bisher |
+| `torus` (Torus) | 36 × 16 | Keine Wände: rechts raus heißt links rein, oben raus heißt unten rein | Das Rechteck rollt sich zur Röhre und biegt sich zum Ring. Das Gitter scrollt um den Ring, damit der Kopf vorne bleibt. |
+| `sphere` (Kugel) | 6 × 10 × 10 | Würfeloberfläche ohne Wände, gespeichert als Kreuz-Netz (40 × 30). Über eine Würfelkante gelangt man auf die Nachbarfläche, dabei dreht sich die Richtung mit. | Das Netz faltet sich zum Würfel und bläst sich zur Kugel auf (Equal-Angle-Cube-Sphere). Die Kugel dreht sich so, dass der Kopf zur Kamera zeigt. |
+| `volume` (3D-Raum) | 12 × 12 × 12 | Wände in alle Richtungen. Zusätzliche Richtungen `ascend` / `descend` (z + 1 / z − 1). | Drahtgitter-Box, die aus dem Boden wächst. Dazu Raster der aktuellen Kopf-Ebene, Bodenschatten der Schlange, Lotlinien von Items und Kopf zum Boden, Items auf der Kopf-Ebene pulsieren. Das HUD zeigt die Ebene. Keine 2D-Ansicht. |
+
+Steuerung auf der Kugel: Weil sich die Kugel unter der Schlange dreht, sind die Tasten bildschirmrelativ. `GameRenderer.mapInput` rechnet die gedrückte Richtung in die passende Netzrichtung der aktuellen Würfelfläche um, bevor die Eingabe an die Simulation geht. In allen anderen Welten fallen Bildschirm- und Gitterachsen zusammen.
+
+Umsetzung: Simulation in `src/sim/world.ts` (`advance` liefert Zielzelle, neue Richtung und eine Umrechnung für bereits vorgemerkte Abbiegungen). Darstellung in `src/render/shape.ts` (`BoardShape`: Gitterkoordinaten zu Weltposition und Normale, abhängig vom Morph), `src/render/path.ts` (Interpolation über Nähte hinweg) und `src/render/volume.ts` (Tiefenhilfen). Die Tests stehen in `tests/sim/world.test.ts`.
 
 ## Items
 
@@ -66,9 +83,9 @@ Verfügbar: `classic`, `rainbow`, `pumpkin`, `neon`, `lava`, `galaxy`. Die Auswa
 
 ## Architektur
 
-- `src/sim/`: Spiellogik. Deterministisch und Tick-basiert (`step(state, inputs)` liefert einen neuen State). Enthält Items, Effekte, RNG, Hash und Zustandstypen.
+- `src/sim/`: Spiellogik. Deterministisch und Tick-basiert (`step(state, inputs)` liefert einen neuen State). Enthält Items, Effekte, Welten/Topologie (`world.ts`), RNG, Hash und Zustandstypen.
 - `src/net/`: Transport-Schicht (`transport.ts`, `LocalTransport` für Singleplayer). Konzept für Multiplayer siehe `src/net/README.md`.
-- `src/render/`: Three.js-Szene (Grid, Schlangen, Items, Partikel, Skins). `src/render/post/` enthält die Shader-Pässe (`uberShader.ts`, `phosphorPass.ts`) und den PostProcessor.
+- `src/render/`: Three.js-Szene (Grid, Schlangen, Items, Partikel, Skins, Spielfeldform `shape.ts`, Schlangenpfad `path.ts`, 3D-Raum-Hilfen `volume.ts`). `src/render/post/` enthält die Shader-Pässe (`uberShader.ts`, `phosphorPass.ts`) und den PostProcessor.
 - `src/input/`: Tastatur (`keyboard.ts`) und Touch-Wischen (`touch.ts`). Liefert Richtungen pro Tick.
 - `src/ui/`: DOM-Overlay mit Menü, HUD, Pause- und Game-Over-Screen. Texte in `texts.ts`, Persistenz in `store.ts`.
 - `src/contracts.ts`: Schnittstellen zwischen `main.ts` und den Modulen (Renderer, Post, Input, UI), außerdem die Liste `SKINS`.

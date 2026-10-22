@@ -3,8 +3,8 @@ import type { Dir, InputCommand, PlayerId } from '../sim/types';
 import { attachKeyboard } from './keyboard';
 import { attachTouch } from './touch';
 
-/** Standard-mapping D-Pad: 12 up, 13 down, 14 left, 15 right. */
-const PAD_DIRS: Dir[] = ['up', 'down', 'left', 'right'];
+/** Standard mapping: D-Pad 12 up, 13 down, 14 left, 15 right; R1 (5) ascend, L1 (4) descend. */
+const PAD_BUTTONS: [number, Dir][] = [[12, 'up'], [13, 'down'], [14, 'left'], [15, 'right'], [5, 'ascend'], [4, 'descend']];
 
 export function createInput(target: HTMLElement | Window, playerId: PlayerId): InputSource {
   let buffer: Dir[] = [];
@@ -14,16 +14,16 @@ export function createInput(target: HTMLElement | Window, playerId: PlayerId): I
   };
   const detachKeys = attachKeyboard(target, push, () => handlers);
   const detachTouch = attachTouch(target, push);
-  const padHeld = [false, false, false, false];
+  const padHeld = PAD_BUTTONS.map(() => false);
 
   function pollGamepad(): void {
     const pads = typeof navigator !== 'undefined' && navigator.getGamepads ? navigator.getGamepads() : [];
     const pad = Array.from(pads).find((p) => p && p.connected);
-    for (let i = 0; i < 4; i++) {
-      const down = !!pad?.buttons[12 + i]?.pressed;
-      if (down && !padHeld[i]) push(PAD_DIRS[i]);
+    PAD_BUTTONS.forEach(([button, dir], i) => {
+      const down = !!pad?.buttons[button]?.pressed;
+      if (down && !padHeld[i]) push(dir);
       padHeld[i] = down;
-    }
+    });
   }
 
   return {

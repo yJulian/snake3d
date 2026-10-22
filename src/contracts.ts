@@ -12,13 +12,15 @@
  */
 import type { Camera, Scene, WebGLRenderer } from 'three';
 import type { EffectIntensities } from './sim/effects';
-import type { GameEvent, GameState, InputCommand, PlayerId } from './sim/types';
+import type { Dir, GameEvent, GameState, InputCommand, PlayerId } from './sim/types';
+import type { WorldId } from './sim/world';
 
 export type { EffectIntensities } from './sim/effects';
 export { effectIntensities, EFFECT_IDS } from './sim/effects';
 export { ITEMS, itemForEffect } from './sim/items';
-export { interpolateSegments, moveProgress } from './sim/state';
+export { moveProgress } from './sim/state';
 export { TICK_HZ } from './sim/step';
+export { WORLD_IDS, type WorldId } from './sim/world';
 
 /** Snake skins (cosmetic). Player.skinId is one of these. Visuals are defined in src/render/skins.ts. */
 export const SKINS = ['classic', 'rainbow', 'pumpkin', 'neon', 'lava', 'galaxy'] as const;
@@ -33,7 +35,9 @@ export type ViewMode = (typeof VIEW_MODES)[number];
 
 /**
  * Owns the WebGLRenderer (its canvas is appended to `container`), the Scene and the Camera.
- * Board: cell (x, y) of the grid; y grows downwards in sim coordinates (see Vec2).
+ * Board: cell (x, y[, z]) of the grid; y grows downwards in sim coordinates (see Vec2). The board's
+ * shape follows GameConfig.world: a new world starts flat and transforms into torus / sphere / box;
+ * the 2D view always shows the flat layout (the volume has no 2D view and stays 3D).
  * Background must be pure black (#000), grid lines grey, only snakes/items colored.
  */
 export interface GameRenderer {
@@ -42,13 +46,18 @@ export interface GameRenderer {
   readonly camera: Camera;
   /**
    * Syncs the scene graph to the interpolated state between `prev` and `curr` (alpha 0..1).
-   * Use interpolateSegments(player, alpha) on `curr` for smooth snake positions.
+   * Smooth snake positions come from SnakePath (src/render/path.ts), which interpolates across wraps.
    * Applies gameplay-visible effects in 3D: fx.tumble (board rotation), fx.ghost (snake transparency).
    * Must NOT call webgl.render – PostProcessor does the final draw.
    */
   update(prev: GameState, curr: GameState, alpha: number, timeSec: number, fx: EffectIntensities): void;
   /** One-shot reactions (eat particles, death flash, spawn pop). */
   onEvents(events: readonly GameEvent[]): void;
+  /**
+   * Converts a raw (screen) direction into the grid direction the player means. Identity except on the
+   * rotating sphere, where grid axes turn on screen. Called before inputs are sent to the sim.
+   */
+  mapInput(playerId: PlayerId, dir: Dir): Dir;
   /**
    * Switches between the 3D view and the flat top-down 2D view (same Camera instance, eased transition).
    * Safe to call at any time (also mid-game); the first call before the first update() applies instantly.
@@ -94,7 +103,8 @@ export interface InputHandlers {
 }
 
 /**
- * Keyboard (WASD + arrows) and touch swipe. Collects direction presses between polls,
+ * Keyboard (WASD + arrows, Space/E = ascend, Shift/Q = descend), gamepad (D-pad, R1/L1) and touch swipe
+ * (two-finger vertical swipe = ascend/descend). Collects direction presses between polls,
  * in order. Raw directions only – mirror inversion and 180° filtering happen in the sim.
  */
 export interface InputSource {
@@ -112,6 +122,8 @@ export type Screen = 'menu' | 'playing' | 'paused' | 'gameover';
 export interface UIHandlers {
   /** Start button in the menu, with the chosen skin. */
   onStart: (skinId: SkinId) => void;
+  /** World switch in the menu (fires immediately; the menu background shows the transformation). */
+  onWorldChange: (world: WorldId) => void;
   /** Restart button on game over. */
   onRestart: () => void;
   /** Resume button on the pause screen. */
@@ -136,6 +148,8 @@ export interface GameUI {
   getSelectedSkin(): SkinId;
   /** Last view mode chosen (from localStorage "snake3d.view"), default '3d'. */
   getSelectedView(): ViewMode;
+  /** Last world chosen (from localStorage "snake3d.world"), default 'flat'. */
+  getSelectedWorld(): WorldId;
   /** Sets and persists the view mode shown in the menu (e.g. after the V key). Does NOT call onViewChange. */
   setSelectedView(mode: ViewMode): void;
   dispose(): void;

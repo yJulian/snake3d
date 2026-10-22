@@ -37,7 +37,9 @@ export function scoreMultiplier(p: Player): number {
   return hasEffect(p, 'speed') ? 2 : 1;
 }
 
-const OPPOSITE: Record<Dir, Dir> = { up: 'down', down: 'up', left: 'right', right: 'left' };
+const OPPOSITE: Record<Dir, Dir> = {
+  up: 'down', down: 'up', left: 'right', right: 'left', ascend: 'descend', descend: 'ascend',
+};
 
 export function opposite(d: Dir): Dir {
   return OPPOSITE[d];

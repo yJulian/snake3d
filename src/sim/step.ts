@@ -9,27 +9,25 @@ import {
 } from './effects';
 import { ITEMS, SPECIAL_ITEM_IDS } from './items';
 import { randRange, weightedIndex } from './rng';
-import { ensureApple, spawnItem } from './state';
-import type { DeathCause, Dir, GameEvent, GameState, InputCommand, ItemId, Player, PlayerId, Vec2 } from './types';
+import { cellOf, ensureApple, spawnItem } from './state';
+import type { DeathCause, Dir, GameConfig, GameEvent, GameState, InputCommand, ItemId, Player, PlayerId, Vec2 } from './types';
+import { advance, dirsFor, sameCell } from './world';
 
 /** Simulation ticks per second. Movement happens every `moveInterval` ticks per player. */
 export const TICK_HZ = 60;
 export const TICK_SEC = 1 / TICK_HZ;
 export const MAX_PENDING_DIRS = 2;
 
-const DELTA: Record<Dir, Vec2> = {
-  up: { x: 0, y: -1 },
-  down: { x: 0, y: 1 },
-  left: { x: -1, y: 0 },
-  right: { x: 1, y: 0 },
-};
-
 function clone<T>(v: T): T {
   return JSON.parse(JSON.stringify(v)) as T;
 }
 
-/** Queues a turn: max 2 pending, ignores repeats and 180° reversals (relative to the last queued dir). */
-function queueDir(p: Player, raw: Dir): void {
+/**
+ * Queues a turn: max 2 pending, ignores repeats, 180° reversals (relative to the last queued dir)
+ * and directions the world does not have (ascend/descend outside 'volume').
+ */
+function queueDir(cfg: GameConfig, p: Player, raw: Dir): void {
+  if (!dirsFor(cfg).includes(raw)) return;
   const s = p.snake;
   const d = applyInputEffects(p, raw);
   const last = s.pendingDirs.length ? s.pendingDirs[s.pendingDirs.length - 1] : s.dir;
@@ -38,7 +36,7 @@ function queueDir(p: Player, raw: Dir): void {
 }
 
 function contains(cells: readonly Vec2[], c: Vec2, from = 0): boolean {
-  for (let i = from; i < cells.length; i++) if (cells[i].x === c.x && cells[i].y === c.y) return true;
+  for (let i = from; i < cells.length; i++) if (sameCell(cells[i], c)) return true;
   return false;
 }
 
@@ -54,7 +52,7 @@ function consume(p: Player, kind: ItemId, at: Vec2, events: GameEvent[]): void {
     p.snake.prevSegments = p.snake.prevSegments.slice(0, len);
     p.snake.pendingGrowth = 0;
   }
-  events.push({ type: 'eat', playerId: p.id, itemId: kind, x: at.x, y: at.y, points });
+  events.push({ type: 'eat', playerId: p.id, itemId: kind, ...cellOf(at), points });
   if (def.effect) startEffect(p, def.effect, def.durationTicks, events);
 }
 
@@ -69,7 +67,8 @@ export function step(prev: GameState, inputs: readonly InputCommand[]): GameStat
   state.events = events;
   if (state.status === 'over') return state;
 
-  const { width, height, baseMoveInterval } = state.config;
+  const cfg = state.config;
+  const { baseMoveInterval } = cfg;
   const byId = new Map<PlayerId, Player>(state.players.map((p) => [p.id, p]));
 
   // 1. Inputs
@@ -79,13 +78,14 @@ export function step(prev: GameState, inputs: readonly InputCommand[]): GameStat
     .sort((a, b) => a.c.tick - b.c.tick || (a.c.playerId < b.c.playerId ? -1 : a.c.playerId > b.c.playerId ? 1 : a.i - b.i));
   for (const { c } of ordered) {
     const p = byId.get(c.playerId);
-    if (p?.alive) queueDir(p, c.dir);
+    if (p?.alive) queueDir(cfg, p, c.dir);
   }
 
   // 2. Movement (simultaneous: compute all new bodies, then resolve collisions)
   const alive = state.players.filter((p) => p.alive);
   const movers: Player[] = [];
   const next = new Map<Player, Vec2[]>();
+  const walled = new Set<Player>();
   for (const p of alive) {
     const s = p.snake;
     s.moveCooldown--;
@@ -94,11 +94,18 @@ export function step(prev: GameState, inputs: readonly InputCommand[]): GameStat
       continue;
     }
     if (s.pendingDirs.length) s.dir = s.pendingDirs.shift()!;
-    const h = s.segments[0];
-    const head = { x: h.x + DELTA[s.dir].x, y: h.y + DELTA[s.dir].y };
-    const grow = s.pendingGrowth > 0;
-    next.set(p, [head, ...(grow ? s.segments : s.segments.slice(0, -1))]);
+    const adv = advance(cfg, s.segments[0], s.dir);
     movers.push(p);
+    if (!adv) {
+      walled.add(p);
+      next.set(p, s.segments);
+      continue;
+    }
+    // Crossing a cube edge turns the heading; queued turns are carried into the new face frame.
+    s.dir = adv.dir;
+    s.pendingDirs = s.pendingDirs.map(adv.remap);
+    const grow = s.pendingGrowth > 0;
+    next.set(p, [adv.cell, ...(grow ? s.segments : s.segments.slice(0, -1))]);
   }
 
   const deaths: [Player, DeathCause][] = [];
@@ -106,7 +113,7 @@ export function step(prev: GameState, inputs: readonly InputCommand[]): GameStat
     const body = next.get(p)!;
     const head = body[0];
     let cause: DeathCause | null = null;
-    if (head.x < 0 || head.y < 0 || head.x >= width || head.y >= height) cause = 'wall';
+    if (walled.has(p)) cause = 'wall';
     else if (!hasEffect(p, 'ghost') && contains(body, head, 1)) cause = 'self';
     else if (alive.some((o) => o !== p && contains(next.get(o)!, head))) cause = 'player';
     if (cause) deaths.push([p, cause]);
@@ -135,7 +142,7 @@ export function step(prev: GameState, inputs: readonly InputCommand[]): GameStat
   for (const p of movers) {
     if (!p.alive) continue;
     const head = p.snake.segments[0];
-    const idx = state.items.findIndex((it) => it.x === head.x && it.y === head.y);
+    const idx = state.items.findIndex((it) => sameCell(it, head));
     if (idx < 0) continue;
     const [item] = state.items.splice(idx, 1);
     consume(p, item.kind, head, events);
@@ -146,7 +153,7 @@ export function step(prev: GameState, inputs: readonly InputCommand[]): GameStat
     if (it.ttl === null) return true;
     it.ttl--;
     if (it.ttl > 0) return true;
-    events.push({ type: 'despawn', uid: it.uid, itemId: it.kind, x: it.x, y: it.y });
+    events.push({ type: 'despawn', uid: it.uid, itemId: it.kind, ...cellOf(it) });
     return false;
   });
   ensureApple(state, events);

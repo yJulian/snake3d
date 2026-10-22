@@ -1,9 +1,9 @@
 import * as THREE from 'three';
 import { ITEMS, TICK_HZ } from '../contracts';
-import type { Item, ItemId } from '../sim/types';
+import type { ItemId } from '../sim/types';
 import { circleShape, flatGeo, flatMat, flatMesh, polyShape } from './flat';
-import type { ItemViewLike } from './items';
-import type { Layout } from './snake';
+import type { ItemSpot, ItemViewLike } from './items';
+import type { BoardShape } from './shape';
 
 const Y = 0.05;
 const BASE_ORDER = 4;
@@ -150,6 +150,7 @@ export class Item2DView implements ItemViewLike {
   readonly body: THREE.Group;
   stamp = 0;
   dying = -1;
+  spot: ItemSpot = { x: 0, y: 0, ttl: null };
   readonly born: number;
 
   constructor(
@@ -166,9 +167,10 @@ export class Item2DView implements ItemViewLike {
     parent.add(this.root);
   }
 
-  update(it: Item, t: number, lay: Layout): boolean {
+  update(it: ItemSpot, t: number, shape: BoardShape): boolean {
     const ph = this.uid * 1.7;
-    this.root.position.set(it.x + lay.ox, Y, it.y + lay.oz);
+    this.spot = it;
+    shape.place(this.root, it, Y);
     const pop = Math.min(1, (t - this.born) / POP_TIME);
     const e = pop - 1;
     const popS = 1 + 2.7 * e * e * e + 1.7 * e * e; // easeOutBack

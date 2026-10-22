@@ -1,7 +1,8 @@
-import { SKINS, VIEW_MODES, type SkinId, type ViewMode } from '../contracts';
+import { SKINS, VIEW_MODES, WORLD_IDS, type SkinId, type ViewMode, type WorldId } from '../contracts';
 
 const SKIN_KEY = 'snake3d.skin';
 const VIEW_KEY = 'snake3d.view';
+const WORLD_KEY = 'snake3d.world';
 const HI_KEY = 'snake3d.highscore';
 
 export function loadSkin(): SkinId {
@@ -32,4 +33,14 @@ export function loadView(): ViewMode {
 }
 export function saveView(m: ViewMode): void {
   try { localStorage.setItem(VIEW_KEY, m); } catch { /* ignore */ }
+}
+export function loadWorld(): WorldId {
+  try {
+    const v = localStorage.getItem(WORLD_KEY);
+    if (v && (WORLD_IDS as readonly string[]).includes(v)) return v as WorldId;
+  } catch { /* storage unavailable */ }
+  return 'flat';
+}
+export function saveWorld(w: WorldId): void {
+  try { localStorage.setItem(WORLD_KEY, w); } catch { /* ignore */ }
 }
