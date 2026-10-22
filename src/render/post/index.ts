@@ -18,12 +18,12 @@ import { createUberMaterial, type UberUniformName } from './uberShader';
  */
 
 /** Always-on glow so colored snakes/items shine on black. Tight: no screen-wide haze. */
-const BLOOM = { strength: 0.6, radius: 0, threshold: 0.3 } as const;
+const BLOOM = { strength: 0.35, radius: 0, threshold: 0.45 } as const;
 /**
  * Per-mip weights (small → wide). three's defaults (1, .8, .6, .4, .2) plus radius spread the
  * glow over the whole screen and lift black; this keeps a tight halo with a soft short tail.
  */
-const BLOOM_FACTORS = [1.0, 0.65, 0.3, 0.1, 0.03];
+const BLOOM_FACTORS = [1.0, 0.5, 0.2, 0.06, 0.02];
 /** Gold tint for the bloom mips during goldflash (linear RGB). */
 const GOLD = new Vector3(1.0, 0.62, 0.16);
 const WHITE = new Vector3(1, 1, 1);
